@@ -6,7 +6,7 @@
 
 #include <iostream>
 
-// Implement the PROS entry-point functions as required by main.h
+ // Implement the PROS entry-point functions as required by main.h
 void initialize() {
   std::cout << "[initialize] Starting..." << std::endl;
   pros::lcd::initialize();
@@ -36,7 +36,7 @@ void opcontrol() {
     right_motor.move(right_y);
 
     std::cout << "[opcontrol] tick " << count << " | left_y=" << left_y
-              << " right_y=" << right_y << std::endl;
+      << " right_y=" << right_y << std::endl;
 
     pros::delay(20);
     count++;
@@ -49,10 +49,12 @@ int main() {
   try {
     initialize();
     opcontrol();
-  } catch (const std::exception& e) {
+  }
+  catch (const std::exception& e) {
     std::cerr << "Exception: " << e.what() << std::endl;
     return 1;
-  } catch (...) {
+  }
+  catch (...) {
     std::cerr << "Unknown exception!" << std::endl;
     return 1;
   }
