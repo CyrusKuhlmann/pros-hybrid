@@ -1,0 +1,4 @@
+C:/Users/gregk/Documents/vex-vscode-projects/pros-hybrid/pros-hardware/pros-sim/CMakeFiles/pros-sim-lib.dir
+C:/Users/gregk/Documents/vex-vscode-projects/pros-hybrid/pros-hardware/pros-sim/CMakeFiles/hello-world.dir
+C:/Users/gregk/Documents/vex-vscode-projects/pros-hybrid/pros-hardware/pros-sim/CMakeFiles/edit_cache.dir
+C:/Users/gregk/Documents/vex-vscode-projects/pros-hybrid/pros-hardware/pros-sim/CMakeFiles/rebuild_cache.dir
