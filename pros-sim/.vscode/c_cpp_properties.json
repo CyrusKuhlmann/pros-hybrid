@@ -12,14 +12,12 @@
         "UNICODE",
         "_UNICODE",
         "PROS_USE_SIMPLE_NAMES",
-        "PROS_USE_LITERALS",
-        "__cplusplus=202002L"
+        "PROS_USE_LITERALS"
       ],
+      "compilerPath": "C:/msys64/ucrt64/bin/g++.exe",
       "cStandard": "c17",
-      "cppStandard": "c++20",
-      "intelliSenseMode": "windows-gcc-x64",
-      "compileCommands": "${workspaceFolder}/build/compile_commands.json",
-      "configurationProvider": "ms-vscode.cmake-tools"
+      "cppStandard": "gnu++23",
+      "intelliSenseMode": "windows-gcc-x64"
     }
   ],
   "version": 4

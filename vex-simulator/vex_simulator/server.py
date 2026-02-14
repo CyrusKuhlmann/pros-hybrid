@@ -77,12 +77,13 @@ class SimulatorServer:
             state = self.robot.get_state_update()
             message = json.dumps(state.to_dict()) + "\n"
 
-            # Send to all clients
-            for _, writer in self.clients:
+            # Send to all clients (non-blocking so a slow client
+            # never stalls the physics loop)
+            encoded = message.encode()
+            for _, writer in list(self.clients):
                 try:
-                    writer.write(message.encode())
-                    await writer.drain()
-                except (ConnectionResetError, BrokenPipeError):
+                    writer.write(encoded)
+                except (ConnectionResetError, BrokenPipeError, OSError):
                     pass  # Will be cleaned up in handle_client
 
             await asyncio.sleep(dt)

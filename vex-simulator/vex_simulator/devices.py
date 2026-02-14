@@ -12,170 +12,105 @@ if TYPE_CHECKING:
 
 
 class Motor:
-    """Simulated V5 motor."""
+    """Simulated V5 smart motor — pure DC‑motor physics, no PID.
 
-    # Motor specs (200 RPM green cartridge)
-    MAX_VOLTAGE = 127
-    MAX_RPM = 200.0
-    GEAR_RATIO = 18.0  # 18:1 green cartridge
+    Models a V5 motor with green cartridge (200 RPM, 18:1 internal gear).
+    Only accepts raw voltage commands (−127…+127).  Shaft speed and
+    position are determined by the rigid‑body physics engine in
+    *RobotState*, not by the motor independently.
+    """
 
-    # Control modes
-    MODE_VOLTAGE = 0
-    MODE_VELOCITY = 1
-    MODE_ABSOLUTE = 2
-    MODE_RELATIVE = 3
+    # ── V5 green‑cartridge constants ──────────────────────────────
+    MAX_CMD: int = 127
+    V_NOM: float = 12.0  # battery voltage [V]
+    FREE_SPEED: float = 200.0 * math.pi / 30.0  # 200 RPM → rad/s ≈ 20.944
+    STALL_TORQUE: float = 2.1  # Nm at output shaft
 
     def __init__(self, port: int) -> None:
-        """Initialize motor."""
+        """Initialize motor on *port*."""
         self.port = port
-        self.voltage = 0
-        self.position_deg = 0.0
-        self.velocity_rpm = 0.0
-        self.torque_nm = 0.0
-        self.temperature_c = 25.0
-        self.current_ma = 0
-        self.brake_mode = BrakeMode.COAST
+        self.voltage_cmd: int = 0  # raw command −127…+127
+        self.brake_mode: BrakeMode = BrakeMode.COAST
+        self._hold_pos: float | None = None  # latched encoder for HOLD
 
-        # Control state
-        self.control_mode = self.MODE_VOLTAGE
-        self.target_velocity_rpm = 0
-        self.target_position_deg = 0.0
-        self.move_relative_origin = 0.0
+        # Sensor state — written by the physics engine every tick
+        self.velocity_rpm: float = 0.0
+        self.position_deg: float = 0.0
+        self.torque_nm: float = 0.0
+        self.current_ma: int = 0
+        self.temperature_c: float = 25.0
+
+    # ── low‑level commands (the ONLY motor inputs) ─────────────────
 
     def set_voltage(self, voltage: int) -> None:
-        """Set motor voltage (-127 to 127)."""
-        self.voltage = max(-self.MAX_VOLTAGE, min(self.MAX_VOLTAGE, voltage))
-        self.control_mode = self.MODE_VOLTAGE
-
-    def set_velocity(self, velocity: int) -> None:
-        """Set target velocity in RPM."""
-        self.target_velocity_rpm = max(
-            -int(self.MAX_RPM), min(int(self.MAX_RPM), velocity)
-        )
-        self.control_mode = self.MODE_VELOCITY
-
-    def move_absolute(self, position: float, velocity: int) -> None:
-        """Move to absolute position at given velocity."""
-        self.target_position_deg = position
-        self.target_velocity_rpm = max(0, min(int(self.MAX_RPM), abs(velocity)))
-        self.control_mode = self.MODE_ABSOLUTE
-
-    def move_relative(self, position: float, velocity: int) -> None:
-        """Move relative position from current at given velocity."""
-        self.move_relative_origin = self.position_deg
-        self.target_position_deg = self.position_deg + position
-        self.target_velocity_rpm = max(0, min(int(self.MAX_RPM), abs(velocity)))
-        self.control_mode = self.MODE_ABSOLUTE  # Same PID, different target
-
-    def brake(self) -> None:
-        """Apply current brake mode (set voltage to 0)."""
-        self.voltage = 0
-        self.control_mode = self.MODE_VOLTAGE
-
-    def tare_position(self) -> None:
-        """Reset position to zero."""
-        self.position_deg = 0.0
+        """Set raw voltage (−127 … +127)."""
+        prev = self.voltage_cmd
+        self.voltage_cmd = max(-self.MAX_CMD, min(self.MAX_CMD, voltage))
+        if self.voltage_cmd != 0:
+            self._hold_pos = None
+        elif prev != 0 and self.brake_mode == BrakeMode.HOLD:
+            self._hold_pos = self.position_deg
 
     def set_brake_mode(self, mode: BrakeMode) -> None:
-        """Set brake mode."""
+        """Set brake behaviour for when voltage is zero."""
         self.brake_mode = mode
+        if mode == BrakeMode.HOLD and self.voltage_cmd == 0:
+            self._hold_pos = self.position_deg
 
-    def update(self, dt: float) -> None:
-        """Update motor state with physics simulation."""
-        if self.control_mode == self.MODE_VELOCITY:
-            # Velocity PID: drive voltage to reach target velocity
-            error = self.target_velocity_rpm - self.velocity_rpm
-            # Simple P controller: voltage proportional to error
-            self.voltage = int(
-                max(
-                    -self.MAX_VOLTAGE,
-                    min(
-                        self.MAX_VOLTAGE,
-                        error * (self.MAX_VOLTAGE / self.MAX_RPM) * 2.0,
-                    ),
-                )
-            )
+    def tare_position(self) -> None:
+        """Reset encoder to zero."""
+        self.position_deg = 0.0
+        if self._hold_pos is not None:
+            self._hold_pos = 0.0
 
-        elif self.control_mode == self.MODE_ABSOLUTE:
-            # Position PID: drive velocity toward target position
-            pos_error = self.target_position_deg - self.position_deg
-            max_vel = (
-                self.target_velocity_rpm
-                if self.target_velocity_rpm > 0
-                else self.MAX_RPM
-            )
+    # ── physics interface (called by RobotState) ─────────────────
 
-            # P controller for position → velocity → voltage
-            desired_vel = max(-max_vel, min(max_vel, pos_error * 2.0))
-            vel_error = desired_vel - self.velocity_rpm
-            self.voltage = int(
-                max(
-                    -self.MAX_VOLTAGE,
-                    min(
-                        self.MAX_VOLTAGE,
-                        vel_error * (self.MAX_VOLTAGE / self.MAX_RPM) * 2.0,
-                    ),
-                )
-            )
+    def compute_torque(self, shaft_rads: float) -> float:
+        """Return output‑shaft torque [Nm] for current voltage & shaft speed.
 
-            # If within 0.5 degrees and slow, hold position
-            if abs(pos_error) < 0.5 and abs(self.velocity_rpm) < 5.0:
-                self.voltage = 0
-                self.velocity_rpm = 0.0
+        DC motor model:  τ = τ_stall × (V_cmd/V_nom − ω/ω_free)
 
-        # Simple model: velocity proportional to voltage
-        target_rpm = (self.voltage / self.MAX_VOLTAGE) * self.MAX_RPM
-
-        # Simple acceleration model
-        accel_rpm_per_sec = 600.0  # Reaches max speed in ~0.33 seconds
-        if abs(target_rpm - self.velocity_rpm) < accel_rpm_per_sec * dt:
-            self.velocity_rpm = target_rpm
-        elif target_rpm > self.velocity_rpm:
-            self.velocity_rpm += accel_rpm_per_sec * dt
-        else:
-            self.velocity_rpm -= accel_rpm_per_sec * dt
-
-        # Apply brake mode when voltage is 0
-        if self.voltage == 0:
+        Brake modes when voltage_cmd == 0:
+          COAST — open circuit → τ = 0
+          BRAKE — shorted terminals → τ = −τ_stall × ω/ω_free
+          HOLD  — firmware spring+damper holding encoder position
+        """
+        if self.voltage_cmd == 0:
+            if self.brake_mode == BrakeMode.COAST:
+                return 0.0
             if self.brake_mode == BrakeMode.BRAKE:
-                # Aggressive braking
-                if abs(self.velocity_rpm) < 50.0 * dt:
-                    self.velocity_rpm = 0.0
-                else:
-                    self.velocity_rpm *= 1.0 - 10.0 * dt
-            elif self.brake_mode == BrakeMode.HOLD:
-                # Active hold (stop completely)
-                self.velocity_rpm = 0.0
-            # COAST: no additional damping
+                return -self.STALL_TORQUE * shaft_rads / self.FREE_SPEED
+            # HOLD
+            if self._hold_pos is None:
+                self._hold_pos = self.position_deg
+            err_rad = math.radians(self._hold_pos - self.position_deg)
+            return 5.0 * err_rad - 3.0 * shaft_rads
 
-        # Update position
-        deg_per_sec = self.velocity_rpm * 6.0  # 360 deg / 60 sec
-        self.position_deg += deg_per_sec * dt
+        v_frac = self.voltage_cmd / self.MAX_CMD
+        return self.STALL_TORQUE * (v_frac - shaft_rads / self.FREE_SPEED)
 
-        # Current draw proportional to voltage
-        self.current_ma = int(abs(self.voltage) * 20)  # ~2.5A at full voltage
-
-        # Temperature rises with use
-        heat_rate = abs(self.voltage) * 0.01 * dt
-        cooling_rate = (self.temperature_c - 25.0) * 0.1 * dt
-        self.temperature_c += heat_rate - cooling_rate
-
-        # Torque estimate
-        self.torque_nm = (
-            abs(self.voltage) / self.MAX_VOLTAGE * 1.05
-        )  # ~1.05 Nm stall torque
+    def update_state(self, shaft_rads: float, torque: float, dt: float) -> None:
+        """Write sensor readings from physics‑engine results."""
+        self.velocity_rpm = shaft_rads * 30.0 / math.pi
+        self.position_deg += math.degrees(shaft_rads) * dt
+        self.torque_nm = torque
+        self.current_ma = int(abs(torque) / self.STALL_TORQUE * 2500)
+        # Simple thermal model (I²R heating, convective cooling)
+        power_w = (self.current_ma * 0.001) ** 2 * 5.0
+        self.temperature_c += (
+            power_w * 0.002 - (self.temperature_c - 25.0) * 0.01
+        ) * dt
+        self.temperature_c = min(self.temperature_c, 55.0)
 
     def get_state(self) -> dict[str, float]:
-        """Get motor state as dict."""
+        """Motor state dict sent to client."""
         return {
             "position_deg": round(self.position_deg, 2),
             "velocity_rpm": round(self.velocity_rpm, 2),
             "torque_nm": round(self.torque_nm, 3),
             "temp_c": round(self.temperature_c, 1),
             "current_ma": self.current_ma,
-            "voltage": self.voltage,
-            "target_position_deg": round(self.target_position_deg, 2),
-            "target_velocity_rpm": self.target_velocity_rpm,
+            "voltage": self.voltage_cmd,
         }
 
 

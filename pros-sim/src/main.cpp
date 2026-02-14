@@ -1,53 +1,62 @@
 /**
- * Hello World program demonstrating the PROS simulation library.
- * Connects to the Python VEX simulator via TCP, then runs user code.
+ * PROS simulation demo — uses only raw motor voltage commands.
+ * All higher-level control (PID, etc.) belongs in this user code,
+ * not in the simulator.
  */
 #include "main.h"
 
+#include <chrono>
 #include <iostream>
 #include <thread>
-#include <chrono>
 
+#include "api.h"
 #include "sim/sim_client.h"
 
- // Implement the PROS entry-point functions as required by main.h
 void initialize() {
-  std::cout << "[initialize] Starting..." << std::endl;
   pros::lcd::initialize();
   pros::lcd::set_text(0, "Hello from PROS Sim!");
-  std::cout << "[initialize] LCD initialized." << std::endl;
 }
 
 void disabled() {}
-
 void competition_initialize() {}
+void autonomous() {
 
-void autonomous() {}
+}
 
 void opcontrol() {
   std::cout << "[opcontrol] Starting..." << std::endl;
-  pros::Motor left_motor(1);
-  pros::Motor right_motor(-2);
+
+  // Left drive motors (ports 1-3), right drive motors (ports 4-6)
+  pros::Motor left1(1);
+  pros::Motor left2(2);
+  pros::Motor left3(3);
+  pros::Motor right1(4);
+  pros::Motor right2(5);
+  pros::Motor right3(6);
+
+  // Set brake mode to coast (the default)
+  left1.set_brake_mode(pros::E_MOTOR_BRAKE_COAST);
+  left2.set_brake_mode(pros::E_MOTOR_BRAKE_COAST);
+  left3.set_brake_mode(pros::E_MOTOR_BRAKE_COAST);
+  right1.set_brake_mode(pros::E_MOTOR_BRAKE_COAST);
+  right2.set_brake_mode(pros::E_MOTOR_BRAKE_COAST);
+  right3.set_brake_mode(pros::E_MOTOR_BRAKE_COAST);
 
   pros::Controller master(pros::E_CONTROLLER_MASTER);
 
+  int tick = 0;
   while (true) {
+    // Tank drive: raw joystick → raw voltage
     int left_y = master.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
     int right_y = master.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_Y);
 
-    left_motor.move(left_y);
-    right_motor.move(right_y);
+    left1.move(left_y);
+    left2.move(left_y);
+    left3.move(left_y);
+    right1.move(right_y);
+    right2.move(right_y);
+    right3.move(right_y);
 
-    // Print telemetry periodically
-    static int tick = 0;
-    if (tick % 50 == 0) {
-      auto m1 = sim::SimClient::instance().get_motor_state(1);
-      auto m2 = sim::SimClient::instance().get_motor_state(2);
-      std::cout << "[opcontrol] L_Y=" << left_y << " R_Y=" << right_y
-        << " | M1 pos==" << m1.position_deg << " vel==" << m1.velocity_rpm
-        << " | M2 pos==" << m2.position_deg << " vel==" << m2.velocity_rpm
-        << std::endl;
-    }
     tick++;
 
     pros::delay(20);
@@ -70,7 +79,7 @@ int main() {
 
   try {
     initialize();
-    opcontrol();
+    autonomous();
   }
   catch (const std::exception& e) {
     std::cerr << "Exception: " << e.what() << std::endl;

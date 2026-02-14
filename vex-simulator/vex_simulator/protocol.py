@@ -9,12 +9,8 @@ from typing import Any
 class MessageType(str, Enum):
     """Message types for simulator protocol."""
 
-    # Commands (client → simulator)
-    SET_MOTOR_VOLTAGE = "motor_move"
-    SET_MOTOR_VELOCITY = "motor_move_velocity"
-    SET_MOTOR_ABSOLUTE = "motor_move_absolute"
-    SET_MOTOR_RELATIVE = "motor_move_relative"
-    MOTOR_BRAKE = "motor_brake"
+    # Commands (client → simulator) — low‑level only
+    SET_MOTOR_VOLTAGE = "motor_move"  # raw voltage (−127…+127)
     SET_MOTOR_BRAKE_MODE = "motor_set_brake_mode"
     MOTOR_TARE_POSITION = "motor_tare_position"
     RESET_IMU = "imu_reset"
