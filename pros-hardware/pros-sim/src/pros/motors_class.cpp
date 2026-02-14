@@ -1,10 +1,22 @@
 /**
- * PROS Motor C++ class stub implementations for simulation
+ * PROS Motor C++ class implementations for simulation.
+ * Sends commands to and reads state from the Python VEX simulator.
  */
 #include <cstdlib>
 #include <vector>
 
 #include "pros/motors.hpp"
+#include "sim/sim_client.h"
+
+static int ap(std::int8_t port) { return std::abs(port); }
+static int sg(std::int8_t port) { return port < 0 ? -1 : 1; }
+static std::string bm_str(pros::MotorBrake m) {
+  switch (m) {
+  case pros::MotorBrake::hold: return "hold";
+  case pros::MotorBrake::brake: return "brake";
+  default: return "coast";
+  }
+}
 
 namespace pros {
   inline namespace v5 {
@@ -24,64 +36,89 @@ namespace pros {
     }
     std::int8_t Motor::size() const { return 1; }
 
-    // Movement functions
+    // ── Movement functions ───────────────────────────────────────────────
+
     std::int32_t Motor::move(std::int32_t voltage) const {
-      (void)voltage;
+      sim::SimClient::instance().send_motor_move(ap(_port),
+        sg(_port) * voltage);
       return 1;
     }
     std::int32_t Motor::move_absolute(const double position,
       const std::int32_t velocity) const {
-      (void)position;
-      (void)velocity;
+      sim::SimClient::instance().send_motor_move_absolute(
+        ap(_port), sg(_port) * position, velocity);
       return 1;
     }
     std::int32_t Motor::move_relative(const double position,
       const std::int32_t velocity) const {
-      (void)position;
-      (void)velocity;
+      sim::SimClient::instance().send_motor_move_relative(
+        ap(_port), sg(_port) * position, velocity);
       return 1;
     }
     std::int32_t Motor::move_velocity(const std::int32_t velocity) const {
-      (void)velocity;
+      sim::SimClient::instance().send_motor_move_velocity(
+        ap(_port), sg(_port) * velocity);
       return 1;
     }
     std::int32_t Motor::move_voltage(const std::int32_t voltage) const {
-      (void)voltage;
+      int v127 = static_cast<int>(
+        static_cast<double>(voltage) * 127.0 / 12000.0);
+      sim::SimClient::instance().send_motor_move(ap(_port),
+        sg(_port) * v127);
       return 1;
     }
-    std::int32_t Motor::brake() const { return 1; }
+    std::int32_t Motor::brake() const {
+      sim::SimClient::instance().send_motor_brake(ap(_port));
+      return 1;
+    }
     std::int32_t Motor::modify_profiled_velocity(
       const std::int32_t velocity) const {
       (void)velocity;
       return 1;
     }
 
-    // Telemetry functions
+    // ── Telemetry functions ──────────────────────────────────────────────
+
     double Motor::get_target_position(const std::uint8_t index) const {
       (void)index;
-      return 0.0;
+      auto st = sim::SimClient::instance().get_motor_state(ap(_port));
+      return sg(_port) * st.target_position_deg;
     }
-    std::vector<double> Motor::get_target_position_all() const { return { 0.0 }; }
+    std::vector<double> Motor::get_target_position_all() const {
+      return { get_target_position() };
+    }
     std::int32_t Motor::get_target_velocity(const std::uint8_t index) const {
       (void)index;
-      return 0;
+      auto st = sim::SimClient::instance().get_motor_state(ap(_port));
+      return sg(_port) * st.target_velocity_rpm;
     }
-    std::vector<std::int32_t> Motor::get_target_velocity_all() const { return { 0 }; }
+    std::vector<std::int32_t> Motor::get_target_velocity_all() const {
+      return { get_target_velocity() };
+    }
     double Motor::get_actual_velocity(const std::uint8_t index) const {
       (void)index;
-      return 0.0;
+      auto st = sim::SimClient::instance().get_motor_state(ap(_port));
+      return sg(_port) * st.velocity_rpm;
     }
-    std::vector<double> Motor::get_actual_velocity_all() const { return { 0.0 }; }
+    std::vector<double> Motor::get_actual_velocity_all() const {
+      return { get_actual_velocity() };
+    }
     std::int32_t Motor::get_current_draw(const std::uint8_t index) const {
       (void)index;
-      return 0;
+      auto st = sim::SimClient::instance().get_motor_state(ap(_port));
+      return st.current_ma;
     }
-    std::vector<std::int32_t> Motor::get_current_draw_all() const { return { 0 }; }
+    std::vector<std::int32_t> Motor::get_current_draw_all() const {
+      return { get_current_draw() };
+    }
     std::int32_t Motor::get_direction(const std::uint8_t index) const {
       (void)index;
-      return 1;
+      auto st = sim::SimClient::instance().get_motor_state(ap(_port));
+      return (sg(_port) * st.velocity_rpm) >= 0 ? 1 : -1;
     }
-    std::vector<std::int32_t> Motor::get_direction_all() const { return { 1 }; }
+    std::vector<std::int32_t> Motor::get_direction_all() const {
+      return { get_direction() };
+    }
     double Motor::get_efficiency(const std::uint8_t index) const {
       (void)index;
       return 0.0;
@@ -99,52 +136,77 @@ namespace pros {
     std::vector<std::uint32_t> Motor::get_flags_all() const { return { 0 }; }
     double Motor::get_position(const std::uint8_t index) const {
       (void)index;
-      return 0.0;
+      auto st = sim::SimClient::instance().get_motor_state(ap(_port));
+      return sg(_port) * st.position_deg;
     }
-    std::vector<double> Motor::get_position_all() const { return { 0.0 }; }
+    std::vector<double> Motor::get_position_all() const {
+      return { get_position() };
+    }
     double Motor::get_power(const std::uint8_t index) const {
       (void)index;
-      return 0.0;
+      auto st = sim::SimClient::instance().get_motor_state(ap(_port));
+      return (std::abs(st.voltage) / 127.0 * 12.0) *
+        (st.current_ma / 1000.0);
     }
-    std::vector<double> Motor::get_power_all() const { return { 0.0 }; }
+    std::vector<double> Motor::get_power_all() const {
+      return { get_power() };
+    }
     std::int32_t Motor::get_raw_position(std::uint32_t* const timestamp,
       const std::uint8_t index) const {
-      (void)timestamp;
       (void)index;
-      return 0;
+      if (timestamp)
+        *timestamp = sim::SimClient::instance().get_timestamp_ms();
+      auto st = sim::SimClient::instance().get_motor_state(ap(_port));
+      return static_cast<std::int32_t>(sg(_port) * st.position_deg * 100.0);
     }
     std::vector<std::int32_t> Motor::get_raw_position_all(
       std::uint32_t* const timestamp) const {
-      (void)timestamp;
-      return { 0 };
+      return { get_raw_position(timestamp) };
     }
     double Motor::get_temperature(const std::uint8_t index) const {
       (void)index;
-      return 0.0;
+      auto st = sim::SimClient::instance().get_motor_state(ap(_port));
+      return st.temp_c;
     }
-    std::vector<double> Motor::get_temperature_all() const { return { 0.0 }; }
+    std::vector<double> Motor::get_temperature_all() const {
+      return { get_temperature() };
+    }
     double Motor::get_torque(const std::uint8_t index) const {
       (void)index;
-      return 0.0;
+      auto st = sim::SimClient::instance().get_motor_state(ap(_port));
+      return st.torque_nm;
     }
-    std::vector<double> Motor::get_torque_all() const { return { 0.0 }; }
+    std::vector<double> Motor::get_torque_all() const {
+      return { get_torque() };
+    }
     std::int32_t Motor::get_voltage(const std::uint8_t index) const {
       (void)index;
-      return 0;
+      auto st = sim::SimClient::instance().get_motor_state(ap(_port));
+      return sg(_port) *
+        static_cast<std::int32_t>(st.voltage * 12000.0 / 127.0);
     }
-    std::vector<std::int32_t> Motor::get_voltage_all() const { return { 0 }; }
+    std::vector<std::int32_t> Motor::get_voltage_all() const {
+      return { get_voltage() };
+    }
     std::int32_t Motor::is_over_current(const std::uint8_t index) const {
       (void)index;
-      return 0;
+      auto st = sim::SimClient::instance().get_motor_state(ap(_port));
+      return st.current_ma > 2500 ? 1 : 0;
     }
-    std::vector<std::int32_t> Motor::is_over_current_all() const { return { 0 }; }
+    std::vector<std::int32_t> Motor::is_over_current_all() const {
+      return { is_over_current() };
+    }
     std::int32_t Motor::is_over_temp(const std::uint8_t index) const {
       (void)index;
-      return 0;
+      auto st = sim::SimClient::instance().get_motor_state(ap(_port));
+      return st.temp_c > 55.0 ? 1 : 0;
     }
-    std::vector<std::int32_t> Motor::is_over_temp_all() const { return { 0 }; }
+    std::vector<std::int32_t> Motor::is_over_temp_all() const {
+      return { is_over_temp() };
+    }
 
-    // Configuration functions
+    // ── Configuration functions ──────────────────────────────────────────
+
     MotorBrake Motor::get_brake_mode(const std::uint8_t index) const {
       (void)index;
       return MotorBrake::coast;
@@ -194,24 +256,29 @@ namespace pros {
 
     std::int32_t Motor::set_brake_mode(const MotorBrake mode,
       const std::uint8_t index) const {
-      (void)mode;
       (void)index;
+      sim::SimClient::instance().send_motor_set_brake_mode(
+        ap(_port), bm_str(mode));
       return 1;
     }
     std::int32_t Motor::set_brake_mode(const pros::motor_brake_mode_e_t mode,
       const std::uint8_t index) const {
-      (void)mode;
       (void)index;
+      std::string m;
+      switch (mode) {
+      case E_MOTOR_BRAKE_HOLD: m = "hold"; break;
+      case E_MOTOR_BRAKE_BRAKE: m = "brake"; break;
+      default: m = "coast"; break;
+      }
+      sim::SimClient::instance().send_motor_set_brake_mode(ap(_port), m);
       return 1;
     }
     std::int32_t Motor::set_brake_mode_all(const MotorBrake mode) const {
-      (void)mode;
-      return 1;
+      return set_brake_mode(mode);
     }
     std::int32_t Motor::set_brake_mode_all(
       const pros::motor_brake_mode_e_t mode) const {
-      (void)mode;
-      return 1;
+      return set_brake_mode(mode);
     }
     std::int32_t Motor::set_current_limit(const std::int32_t limit,
       const std::uint8_t index) const {
@@ -296,9 +363,12 @@ namespace pros {
     }
     std::int32_t Motor::tare_position(const std::uint8_t index) const {
       (void)index;
+      sim::SimClient::instance().send_motor_tare_position(ap(_port));
       return 1;
     }
-    std::int32_t Motor::tare_position_all() const { return 1; }
+    std::int32_t Motor::tare_position_all() const {
+      return tare_position();
+    }
 
     std::ostream& operator<<(std::ostream& os, const Motor& motor) {
       os << "Motor [port: " << (int)motor.get_port() << "]";

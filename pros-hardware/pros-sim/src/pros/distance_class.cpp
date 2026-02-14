@@ -1,7 +1,9 @@
 /**
- * PROS Distance C++ class stub implementations for simulation
+ * PROS Distance C++ class implementations for simulation.
+ * Reads state from the Python VEX simulator.
  */
 #include "pros/distance.hpp"
+#include "sim/sim_client.h"
 
 namespace pros {
   inline namespace v5 {
@@ -10,9 +12,17 @@ namespace pros {
       : Device(port, DeviceType::distance) {
     }
     std::vector<Distance> Distance::get_all_devices() { return {}; }
-    std::int32_t Distance::get() { return 0; }
-    std::int32_t Distance::get_distance() { return 0; }
-    std::int32_t Distance::get_confidence() { return 0; }
+
+    std::int32_t Distance::get() {
+      return sim::SimClient::instance().get_distance_state(_port).distance_mm;
+    }
+    std::int32_t Distance::get_distance() {
+      return get();
+    }
+    std::int32_t Distance::get_confidence() {
+      auto d = sim::SimClient::instance().get_distance_state(_port).distance_mm;
+      return d > 0 ? 63 : 0;
+    }
     std::int32_t Distance::get_object_size() { return 0; }
     double Distance::get_object_velocity() { return 0.0; }
 

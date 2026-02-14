@@ -1,69 +1,90 @@
 /**
- * PROS IMU C++ class stub implementations for simulation
+ * PROS IMU C++ class implementations for simulation.
+ * Reads state from the Python VEX simulator.
  */
 #include "pros/imu.hpp"
+#include "sim/sim_client.h"
 
 namespace pros {
   inline namespace v5 {
 
     Imu Imu::get_imu() { return Imu(1); }
     std::vector<Imu> Imu::get_all_devices() { return {}; }
+
     std::int32_t Imu::reset(bool blocking) const {
       (void)blocking;
+      sim::SimClient::instance().send_imu_reset(_port);
       return 1;
     }
     std::int32_t Imu::set_data_rate(std::uint32_t rate) const {
       (void)rate;
       return 1;
     }
-    double Imu::get_rotation() const { return 0.0; }
-    double Imu::get_heading() const { return 0.0; }
+    double Imu::get_rotation() const {
+      return sim::SimClient::instance().get_imu_state(_port).rotation;
+    }
+    double Imu::get_heading() const {
+      return sim::SimClient::instance().get_imu_state(_port).heading;
+    }
     quaternion_s_t Imu::get_quaternion() const {
       quaternion_s_t q = {};
       q.w = 1.0;
       return q;
     }
     euler_s_t Imu::get_euler() const {
+      auto st = sim::SimClient::instance().get_imu_state(_port);
       euler_s_t e = {};
+      e.pitch = st.pitch;
+      e.roll = st.roll;
+      e.yaw = st.yaw;
       return e;
     }
-    double Imu::get_pitch() const { return 0.0; }
-    double Imu::get_roll() const { return 0.0; }
-    double Imu::get_yaw() const { return 0.0; }
+    double Imu::get_pitch() const {
+      return sim::SimClient::instance().get_imu_state(_port).pitch;
+    }
+    double Imu::get_roll() const {
+      return sim::SimClient::instance().get_imu_state(_port).roll;
+    }
+    double Imu::get_yaw() const {
+      return sim::SimClient::instance().get_imu_state(_port).yaw;
+    }
     imu_gyro_s_t Imu::get_gyro_rate() const {
       imu_gyro_s_t g = {};
       return g;
     }
-    std::int32_t Imu::tare_rotation() const { return 1; }
-    std::int32_t Imu::tare_heading() const { return 1; }
+    std::int32_t Imu::tare_rotation() const {
+      sim::SimClient::instance().send_imu_reset(_port);
+      return 1;
+    }
+    std::int32_t Imu::tare_heading() const {
+      sim::SimClient::instance().send_imu_reset(_port);
+      return 1;
+    }
     std::int32_t Imu::tare_pitch() const { return 1; }
     std::int32_t Imu::tare_yaw() const { return 1; }
     std::int32_t Imu::tare_roll() const { return 1; }
-    std::int32_t Imu::tare() const { return 1; }
+    std::int32_t Imu::tare() const {
+      sim::SimClient::instance().send_imu_reset(_port);
+      return 1;
+    }
     std::int32_t Imu::tare_euler() const { return 1; }
     std::int32_t Imu::set_heading(double target) const {
-      (void)target;
-      return 1;
+      (void)target; return 1;
     }
     std::int32_t Imu::set_rotation(double target) const {
-      (void)target;
-      return 1;
+      (void)target; return 1;
     }
     std::int32_t Imu::set_yaw(double target) const {
-      (void)target;
-      return 1;
+      (void)target; return 1;
     }
     std::int32_t Imu::set_pitch(double target) const {
-      (void)target;
-      return 1;
+      (void)target; return 1;
     }
     std::int32_t Imu::set_roll(double target) const {
-      (void)target;
-      return 1;
+      (void)target; return 1;
     }
     std::int32_t Imu::set_euler(euler_s_t target) const {
-      (void)target;
-      return 1;
+      (void)target; return 1;
     }
     imu_accel_s_t Imu::get_accel() const {
       imu_accel_s_t a = {};

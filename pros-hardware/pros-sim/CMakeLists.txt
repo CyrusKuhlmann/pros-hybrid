@@ -8,6 +8,7 @@ set(CMAKE_CXX_EXTENSIONS ON)  # Enable GNU extensions for __attribute__ support
 # Gather all library source files
 file(GLOB PROS_SIM_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pros/*.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/sim/*.cpp
 )
 
 # Build the PROS simulation library as an OBJECT library to avoid static lib weak-symbol issues
@@ -23,10 +24,20 @@ target_compile_options(pros-sim-lib PRIVATE
     -Wno-attributes
 )
 
+# Link Winsock on Windows for TCP communication with the simulator
+if(WIN32)
+    target_link_libraries(pros-sim-lib PUBLIC ws2_32)
+endif()
+
 # Build the hello world executable
 add_executable(hello-world ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
 
 target_link_libraries(hello-world PRIVATE pros-sim-lib)
+
+# Link Winsock for the executable as well (needed on Windows)
+if(WIN32)
+    target_link_libraries(hello-world PRIVATE ws2_32)
+endif()
 
 target_compile_options(hello-world PRIVATE
     -Wno-deprecated
