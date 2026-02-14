@@ -31,7 +31,7 @@ endif()
 
 # Build the simulated client executable
 add_executable(sim_client
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/sim_main.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/sim/sim_main.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp
 )
 
