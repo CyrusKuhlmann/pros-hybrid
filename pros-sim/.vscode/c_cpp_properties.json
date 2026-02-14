@@ -5,7 +5,8 @@
       "includePath": [
         "${workspaceFolder}/include",
         "${workspaceFolder}/include/liblvgl",
-        "${workspaceFolder}/include/pros"
+        "${workspaceFolder}/include/pros",
+        "${workspaceFolder}/include/Eigen"
       ],
       "defines": [
         "_DEBUG",

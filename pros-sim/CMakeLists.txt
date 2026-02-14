@@ -16,6 +16,7 @@ add_library(pros-sim-lib OBJECT ${PROS_SIM_SOURCES})
 
 target_include_directories(pros-sim-lib PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/Eigen
 )
 
 # Suppress deprecation warnings from legacy typedefs and deprecated namespace
@@ -29,10 +30,15 @@ if(WIN32)
     target_link_libraries(pros-sim-lib PUBLIC ws2_32)
 endif()
 
+# Gather all user source files (everything in src/ except the sim subdirectory)
+file(GLOB USER_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
+)
+
 # Build the simulated client executable
 add_executable(sim_client
     ${CMAKE_CURRENT_SOURCE_DIR}/src/sim/sim_main.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp
+    ${USER_SOURCES}
 )
 
 target_link_libraries(sim_client PRIVATE pros-sim-lib)
