@@ -29,17 +29,26 @@ if(WIN32)
     target_link_libraries(pros-sim-lib PUBLIC ws2_32)
 endif()
 
-# Build the hello world executable
-add_executable(hello-world ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
+# Build the simulated client executable
+add_executable(sim_client
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/sim_main.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp
+)
 
-target_link_libraries(hello-world PRIVATE pros-sim-lib)
+target_link_libraries(sim_client PRIVATE pros-sim-lib)
 
 # Link Winsock for the executable as well (needed on Windows)
 if(WIN32)
-    target_link_libraries(hello-world PRIVATE ws2_32)
+    target_link_libraries(sim_client PRIVATE ws2_32)
 endif()
 
-target_compile_options(hello-world PRIVATE
+target_compile_options(sim_client PRIVATE
     -Wno-deprecated
     -Wno-attributes
 )
+
+# MinGW linker needs --allow-multiple-definition for weak LLEMU symbols
+# emitted by multiple translation units including api.h
+if(MINGW)
+    target_link_options(sim_client PRIVATE -Wl,--allow-multiple-definition)
+endif()
