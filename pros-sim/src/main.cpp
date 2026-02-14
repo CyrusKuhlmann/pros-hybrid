@@ -64,8 +64,15 @@ void autonomous() {
   left_motors.move(127);
   right_motors.move(127);
   pros::delay(2000);
+  left_motors.move(-127);
+  pros::delay(500);
   left_motors.move(0);
   right_motors.move(0);
+  left_motors.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
+  right_motors.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
+  left_motors.brake();
+  right_motors.brake();
+
 
 }
 

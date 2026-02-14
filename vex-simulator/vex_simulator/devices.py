@@ -12,27 +12,23 @@ if TYPE_CHECKING:
 
 
 class Motor:
-    """Simulated V5 smart motor — pure DC‑motor physics, no PID.
+    """Simulated V5 smart motor — perfect-world (instant response).
 
-    Models a V5 motor with green cartridge (200 RPM, 18:1 internal gear).
-    Only accepts raw voltage commands (−127…+127).  Shaft speed and
-    position are determined by the rigid‑body physics engine in
-    *RobotState*, not by the motor independently.
+    Models a V5 motor with green cartridge (200 RPM free speed).
+    Assumes a perfect world: motor commands reach full speed instantly
+    with no ramp-up, and any brake command immediately stops the motor.
     """
 
     # ── V5 green‑cartridge constants ──────────────────────────────
     MAX_CMD: int = 127
-    V_NOM: float = 12.0  # battery voltage [V]
     FREE_SPEED: float = 200.0 * math.pi / 30.0  # 200 RPM → rad/s ≈ 20.944
-    STALL_TORQUE: float = 2.1  # Nm at output shaft
+    FREE_SPEED_RPM: float = 200.0
 
     def __init__(self, port: int) -> None:
         """Initialize motor on *port*."""
         self.port = port
         self.voltage_cmd: int = 0  # raw command −127…+127
         self.brake_mode: BrakeMode = BrakeMode.COAST
-        self._hold_pos: float | None = None  # latched encoder for HOLD
-
         # Sensor state — written by the physics engine every tick
         self.velocity_rpm: float = 0.0
         self.position_deg: float = 0.0
@@ -44,63 +40,39 @@ class Motor:
 
     def set_voltage(self, voltage: int) -> None:
         """Set raw voltage (−127 … +127)."""
-        prev = self.voltage_cmd
         self.voltage_cmd = max(-self.MAX_CMD, min(self.MAX_CMD, voltage))
-        if self.voltage_cmd != 0:
-            self._hold_pos = None
-        elif prev != 0 and self.brake_mode == BrakeMode.HOLD:
-            self._hold_pos = self.position_deg
 
     def set_brake_mode(self, mode: BrakeMode) -> None:
-        """Set brake behaviour for when voltage is zero."""
+        """Set brake behaviour for when voltage is zero.
+
+        In perfect‑world mode all brake types behave identically:
+        the motor stops instantly and velocity goes to zero.
+        """
         self.brake_mode = mode
-        if mode == BrakeMode.HOLD and self.voltage_cmd == 0:
-            self._hold_pos = self.position_deg
 
     def tare_position(self) -> None:
         """Reset encoder to zero."""
         self.position_deg = 0.0
-        if self._hold_pos is not None:
-            self._hold_pos = 0.0
 
     # ── physics interface (called by RobotState) ─────────────────
 
-    def compute_torque(self, shaft_rads: float) -> float:
-        """Return output‑shaft torque [Nm] for current voltage & shaft speed.
+    def get_target_speed(self) -> float:
+        """Return the ideal shaft speed [rad/s] for the current command.
 
-        DC motor model:  τ = τ_stall × (V_cmd/V_nom − ω/ω_free)
-
-        Brake modes when voltage_cmd == 0:
-          COAST — open circuit → τ = 0
-          BRAKE — shorted terminals → τ = −τ_stall × ω/ω_free
-          HOLD  — firmware spring+damper holding encoder position
+        Perfect world: speed is an instant linear function of voltage.
+        When voltage is zero (any brake mode) speed is immediately zero.
         """
         if self.voltage_cmd == 0:
-            if self.brake_mode == BrakeMode.COAST:
-                return 0.0
-            if self.brake_mode == BrakeMode.BRAKE:
-                return -self.STALL_TORQUE * shaft_rads / self.FREE_SPEED
-            # HOLD
-            if self._hold_pos is None:
-                self._hold_pos = self.position_deg
-            err_rad = math.radians(self._hold_pos - self.position_deg)
-            return 5.0 * err_rad - 3.0 * shaft_rads
+            return 0.0
+        return (self.voltage_cmd / self.MAX_CMD) * self.FREE_SPEED
 
-        v_frac = self.voltage_cmd / self.MAX_CMD
-        return self.STALL_TORQUE * (v_frac - shaft_rads / self.FREE_SPEED)
-
-    def update_state(self, shaft_rads: float, torque: float, dt: float) -> None:
+    def update_state(self, shaft_rads: float, dt: float) -> None:
         """Write sensor readings from physics‑engine results."""
         self.velocity_rpm = shaft_rads * 30.0 / math.pi
         self.position_deg += math.degrees(shaft_rads) * dt
-        self.torque_nm = torque
-        self.current_ma = int(abs(torque) / self.STALL_TORQUE * 2500)
-        # Simple thermal model (I²R heating, convective cooling)
-        power_w = (self.current_ma * 0.001) ** 2 * 5.0
-        self.temperature_c += (
-            power_w * 0.002 - (self.temperature_c - 25.0) * 0.01
-        ) * dt
-        self.temperature_c = min(self.temperature_c, 55.0)
+        self.torque_nm = 0.0  # perfect world — torque not modelled
+        self.current_ma = 0
+        self.temperature_c = 25.0  # no thermal effects
 
     def get_state(self) -> dict[str, float]:
         """Motor state dict sent to client."""

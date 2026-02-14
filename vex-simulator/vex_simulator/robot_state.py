@@ -14,16 +14,12 @@ if TYPE_CHECKING:
 
 
 class RobotState:
-    """Central robot state — rigid‑body physics + DC‑motor model."""
+    """Central robot state — perfect‑world physics (instant response)."""
 
     # ── Robot physical constants ────────────────────────────────────
-    ROBOT_MASS: float = 6.8  # kg (~15 lb competition robot)
     WHEEL_RADIUS: float = 0.0508  # m   (2‑inch wheels)
     TRACKWIDTH: float = 0.3556  # m   (14‑inch track centre‑to‑centre)
-    INERTIA: float = ROBOT_MASS * (TRACKWIDTH / 2) ** 2  # kg·m² ≈ 0.215
     IN_PER_M: float = 39.3701
-    VISCOUS_LIN: float = 5.0  # N·s/m   (drivetrain + rolling drag)
-    VISCOUS_ANG: float = 0.3  # N·m·s/rad
     LEFT_PORTS: tuple[int, ...] = (1, 2, 3)
     RIGHT_PORTS: tuple[int, ...] = (4, 5, 6)
 
@@ -106,44 +102,42 @@ class RobotState:
             rotation.set_position(position)
 
     def update(self, dt: float) -> None:
-        """Advance rigid‑body + DC‑motor physics by *dt* seconds."""
+        """Advance perfect-world physics by *dt* seconds.
+
+        No momentum, no ramp-up: motor speeds are applied instantly.
+        Any brake (coast/brake/hold) immediately zeroes motor velocity.
+        """
         half_track = self.TRACKWIDTH / 2
 
-        # ── wheel ground speeds from current robot velocity ──
-        v_left = self.linear_vel - self.angular_vel * half_track
-        v_right = self.linear_vel + self.angular_vel * half_track
-        omega_left = v_left / self.WHEEL_RADIUS  # motor shaft [rad/s]
-        omega_right = v_right / self.WHEEL_RADIUS
-
-        # ── motor torques (DC motor curve per motor) ──
+        # -- collect motors per side --
         left_motors = [self.motors[p] for p in self.LEFT_PORTS if p in self.motors]
         right_motors = [self.motors[p] for p in self.RIGHT_PORTS if p in self.motors]
-        tau_left = sum(m.compute_torque(omega_left) for m in left_motors)
-        tau_right = sum(m.compute_torque(omega_right) for m in right_motors)
 
-        # ── wheel → ground forces [N] ──
-        F_left = tau_left / self.WHEEL_RADIUS
-        F_right = tau_right / self.WHEEL_RADIUS
+        # -- instant target shaft speeds from motor commands --
+        if left_motors:
+            omega_left = sum(m.get_target_speed() for m in left_motors) / len(left_motors)
+        else:
+            omega_left = 0.0
+        if right_motors:
+            omega_right = sum(m.get_target_speed() for m in right_motors) / len(right_motors)
+        else:
+            omega_right = 0.0
 
-        # ── friction (viscous) ──
-        F_friction = -self.VISCOUS_LIN * self.linear_vel
-        tau_friction = -self.VISCOUS_ANG * self.angular_vel
+        # -- convert shaft speeds to ground velocities --
+        v_left = omega_left * self.WHEEL_RADIUS
+        v_right = omega_right * self.WHEEL_RADIUS
 
-        # ── Newton’s second law ──
-        a_lin = (F_left + F_right + F_friction) / self.ROBOT_MASS
-        a_ang = ((F_right - F_left) * half_track + tau_friction) / self.INERTIA
+        # -- differential drive kinematics (instant, no inertia) --
+        self.linear_vel = (v_left + v_right) / 2.0
+        self.angular_vel = (v_right - v_left) / self.TRACKWIDTH
 
-        # ── integrate velocities ──
-        self.linear_vel += a_lin * dt
-        self.angular_vel += a_ang * dt
-
-        # ── integrate pose (field inches, θ=0 → north) ──
+        # -- integrate pose (field inches, theta=0 -> north) --
         self.heading_rad += self.angular_vel * dt
         self.x += self.linear_vel * math.sin(self.heading_rad) * dt * self.IN_PER_M
         self.y += self.linear_vel * math.cos(self.heading_rad) * dt * self.IN_PER_M
 
-        # ── wall collisions (clamp position, project velocity) ──
-        half_robot = 9.0  # robot is 18×18 in
+        # -- wall collisions (clamp position, project velocity) --
+        half_robot = 9.0  # robot is 18x18 in
         vx = self.linear_vel * math.sin(self.heading_rad)
         vy = self.linear_vel * math.cos(self.heading_rad)
         clamped = False
@@ -170,19 +164,15 @@ class RobotState:
         if clamped:
             s = math.sin(self.heading_rad)
             c = math.cos(self.heading_rad)
-            self.linear_vel = vx * s + vy * c  # re‑project onto forward axis
+            self.linear_vel = vx * s + vy * c
 
-        # ── update motor sensor states ──
-        v_left = self.linear_vel - self.angular_vel * half_track
-        v_right = self.linear_vel + self.angular_vel * half_track
-        omega_left = v_left / self.WHEEL_RADIUS
-        omega_right = v_right / self.WHEEL_RADIUS
-        n_left = max(1, len(left_motors))
-        n_right = max(1, len(right_motors))
+        # -- update motor sensor states --
+        omega_left_actual = (self.linear_vel - self.angular_vel * half_track) / self.WHEEL_RADIUS
+        omega_right_actual = (self.linear_vel + self.angular_vel * half_track) / self.WHEEL_RADIUS
         for m in left_motors:
-            m.update_state(omega_left, tau_left / n_left, dt)
+            m.update_state(omega_left_actual, dt)
         for m in right_motors:
-            m.update_state(omega_right, tau_right / n_right, dt)
+            m.update_state(omega_right_actual, dt)
 
         # ── IMU ──
         angular_vel_dps = math.degrees(self.angular_vel)
