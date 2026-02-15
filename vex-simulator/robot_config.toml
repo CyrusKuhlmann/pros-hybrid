@@ -1,0 +1,71 @@
+# ─────────────────────────────────────────────────────────
+# VEX Simulator — Robot Configuration
+# ─────────────────────────────────────────────────────────
+# Edit this file to match your physical robot build.
+# All distances are in inches, angles in degrees.
+
+# ── Drivetrain ──────────────────────────────────────────
+[drivetrain]
+wheel_diameter_in   = 3.25        # Wheel diameter (common: 2.75, 3.25, 4.0)
+track_width_in      = 14.0       # Centre-to-centre distance between left & right wheels
+motor_max_rpm       = 450.0      # Motor cartridge free speed (green=200, blue=600, red=100)
+left_motor_ports    = [-1, -2, -4]  # Ports for left-side drive motors
+right_motor_ports   = [11, 12, 13]  # Ports for right-side drive motors
+
+# ── Chassis ─────────────────────────────────────────────
+[chassis]
+robot_size_in = 18.0             # Robot footprint (square, side length in inches)
+
+# ── Starting Pose ───────────────────────────────────────
+[start_pose]
+x_in         = 81.0             # Starting X position on field (inches from left wall)
+y_in         = 27.0             # Starting Y position on field (inches from bottom wall)
+heading_deg  = 0.0              # Starting heading (0 = north/up, CW positive)
+
+# ── Sensors ─────────────────────────────────────────────
+[sensors]
+imu_port = 16                   # Port for the inertial sensor (omit to skip)
+
+# Distance sensors — add one [[sensors.distance]] block per sensor.
+# offset_forward = inches forward from robot centre (negative = behind)
+# offset_right   = inches right from robot centre   (negative = left)
+# direction      = which way the sensor faces: "forward", "backward", "left", "right"
+
+[[sensors.distance]]
+port           = 7
+offset_forward = 9.0
+offset_right   = 0.0
+direction      = "forward"
+
+[[sensors.distance]]
+port           = 8
+offset_forward = 0.0
+offset_right   = 9.0
+direction      = "right"
+
+[[sensors.distance]]
+port           = 9
+offset_forward = 0.0
+offset_right   = -9.0
+direction      = "left"
+
+# Rotation sensors — dead wheels (unpowered tracking wheels).
+# port              = sensor port number
+# offset_forward    = inches forward from robot centre (negative = behind)
+# offset_right      = inches right from robot centre (negative = left)
+# orientation       = "forward" (rolls with forward motion) or "lateral" (rolls sideways)
+# wheel_diameter_in = dead-wheel diameter in inches
+
+[[sensors.rotation]]
+port              = 18
+offset_forward    = -8.0
+offset_right      = 0
+orientation       = "forward"
+wheel_diameter_in = 2
+
+[[sensors.rotation]]
+port              = 15 
+offset_forward    = -3
+offset_right      = 1
+orientation       = "lateral"
+wheel_diameter_in = 2

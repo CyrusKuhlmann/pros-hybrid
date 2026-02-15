@@ -216,8 +216,9 @@ class Visualizer:
 
     # ── robot body ───────────────────────────────────────────────────────
     def _draw_robot(self) -> None:
-        # Body rectangle (18 × 18 in)
-        body = self._rect_pts(0, 0, ROBOT_IN, ROBOT_IN)
+        # Body rectangle (config-driven size)
+        rsz = self.robot.cfg.robot_size_in
+        body = self._rect_pts(0, 0, rsz, rsz)
         pygame.draw.polygon(self.screen, C_ROBOT_FILL, body)
         pygame.draw.polygon(self.screen, C_ROBOT_EDGE, body, 2)
 
@@ -251,18 +252,22 @@ class Visualizer:
 
         # ── Left motors ──
         y = self._sec(px, y, "LEFT MOTORS")
-        for p in (1, 2, 3):
-            m = self.robot.motors.get(p)
+        for p in self.robot.cfg.left_motor_ports:
+            ap = abs(p)
+            m = self.robot.motors.get(ap)
+            rev = " \u21c4" if p < 0 else ""
             val = f"{m.velocity_rpm:+6.0f} RPM" if m else "\u2014"
-            y = self._kv(px, y, f"Port {p}", val)
+            y = self._kv(px, y, f"Port {ap}{rev}", val)
         y += 4
 
         # ── Right motors ──
         y = self._sec(px, y, "RIGHT MOTORS")
-        for p in (4, 5, 6):
-            m = self.robot.motors.get(p)
+        for p in self.robot.cfg.right_motor_ports:
+            ap = abs(p)
+            m = self.robot.motors.get(ap)
+            rev = " \u21c4" if p < 0 else ""
             val = f"{m.velocity_rpm:+6.0f} RPM" if m else "\u2014"
-            y = self._kv(px, y, f"Port {p}", val)
+            y = self._kv(px, y, f"Port {ap}{rev}", val)
         y += 4
         y = self._divider(px, y)
 

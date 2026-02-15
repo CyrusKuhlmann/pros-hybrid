@@ -14,19 +14,17 @@ if TYPE_CHECKING:
 class Motor:
     """Simulated V5 smart motor — perfect-world (instant response).
 
-    Models a V5 motor with green cartridge (200 RPM free speed).
     Assumes a perfect world: motor commands reach full speed instantly
     with no ramp-up, and any brake command immediately stops the motor.
     """
 
-    # ── V5 green‑cartridge constants ──────────────────────────────
     MAX_CMD: int = 127
-    FREE_SPEED: float = 200.0 * math.pi / 30.0  # 200 RPM → rad/s ≈ 20.944
-    FREE_SPEED_RPM: float = 200.0
 
-    def __init__(self, port: int) -> None:
-        """Initialize motor on *port*."""
+    def __init__(self, port: int, max_rpm: float = 200.0) -> None:
+        """Initialize motor on *port* with the given *max_rpm*."""
         self.port = port
+        self.max_rpm = max_rpm
+        self.free_speed: float = max_rpm * math.pi / 30.0  # rad/s
         self.voltage_cmd: int = 0  # raw command −127…+127
         self.brake_mode: BrakeMode = BrakeMode.COAST
         # Sensor state — written by the physics engine every tick
@@ -64,7 +62,7 @@ class Motor:
         """
         if self.voltage_cmd == 0:
             return 0.0
-        return (self.voltage_cmd / self.MAX_CMD) * self.FREE_SPEED
+        return (self.voltage_cmd / self.MAX_CMD) * self.free_speed
 
     def update_state(self, shaft_rads: float, dt: float) -> None:
         """Write sensor readings from physics‑engine results."""
@@ -127,7 +125,7 @@ class IMU:
 
 
 class RotationSensor:
-    """Simulated rotation sensor."""
+    """Simulated rotation sensor attached to a dead wheel."""
 
     def __init__(self, port: int) -> None:
         """Initialize rotation sensor."""
@@ -143,10 +141,18 @@ class RotationSensor:
         """Set the current position value."""
         self.position_cdeg = position_cdeg
 
-    def update(self, dt: float, attached_motor_velocity_rpm: float) -> None:
-        """Update sensor based on attached motor."""
-        # Assume 1:1 coupling to a motor for now
-        self.velocity_dps = attached_motor_velocity_rpm * 6.0  # Convert RPM to deg/s
+    def update(
+        self, dt: float, ground_velocity_ms: float, wheel_radius_m: float
+    ) -> None:
+        """Update sensor from the dead wheel's ground contact velocity.
+
+        *ground_velocity_ms* is the linear speed (m/s) at the wheel's
+        contact patch.  *wheel_radius_m* converts that to angular rate.
+        """
+        import math
+
+        wheel_angular_vel = ground_velocity_ms / wheel_radius_m  # rad/s
+        self.velocity_dps = math.degrees(wheel_angular_vel)
         self.position_cdeg += int(self.velocity_dps * dt * 100)  # Integrate
 
     def get_state(self) -> dict[str, float]:

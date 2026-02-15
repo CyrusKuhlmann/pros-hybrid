@@ -6,6 +6,7 @@ import math
 import time
 from typing import TYPE_CHECKING
 
+from vex_simulator.config import DeadWheelMount, RobotConfig, SensorMount
 from vex_simulator.devices import Controller, DistanceSensor, IMU, Motor, RotationSensor
 from vex_simulator.protocol import BrakeMode, CommandMessage, MessageType, StateUpdate
 
@@ -16,34 +17,45 @@ if TYPE_CHECKING:
 class RobotState:
     """Central robot state — perfect‑world physics (instant response)."""
 
-    # ── Robot physical constants ────────────────────────────────────
-    WHEEL_RADIUS: float = 0.0508  # m   (2‑inch wheels)
-    TRACKWIDTH: float = 0.3556  # m   (14‑inch track centre‑to‑centre)
     IN_PER_M: float = 39.3701
-    LEFT_PORTS: tuple[int, ...] = (1, 2, 3)
-    RIGHT_PORTS: tuple[int, ...] = (4, 5, 6)
 
-    def __init__(self) -> None:
-        """Initialize robot with empty device registry."""
+    def __init__(self, config: RobotConfig | None = None) -> None:
+        """Initialize robot from *config* (defaults used if omitted)."""
+        self.cfg = config or RobotConfig()
+
         self.motors: dict[int, Motor] = {}
         self.imus: dict[int, IMU] = {}
         self.rotation_sensors: dict[int, RotationSensor] = {}
+        self._dead_wheel_mounts: dict[int, DeadWheelMount] = {}
         self.distance_sensors: dict[int, DistanceSensor] = {}
         self.controller_master = Controller()
         self.controller_partner = Controller()
 
         self.start_time = time.time()
 
-        # Pose (field coords, inches, origin bottom‑left)
-        self.x: float = 81.0
-        self.y: float = 27.0
-        self.heading_rad: float = 0.0  # θ=0 → north / up, CCW positive
+        # Ports listed as negative in config are reversed (voltage negated)
+        self._reversed_ports: set[int] = set()
+        for p in self.cfg.left_motor_ports + self.cfg.right_motor_ports:
+            if p < 0:
+                self._reversed_ports.add(abs(p))
 
-        # Rigid‑body velocities (SI)
-        self.linear_vel: float = 0.0  # m/s  (forward)
-        self.angular_vel: float = 0.0  # rad/s (CCW positive)
+        # Pre-create rotation sensors from config dead-wheel mounts
+        for mount in self.cfg.rotation_sensors:
+            self._dead_wheel_mounts[mount.port] = mount
+            self.rotation_sensors[mount.port] = RotationSensor(mount.port)
 
-        # Computed wall distances (mm) for the three mounted sensors
+        # Pose: +X=east, +Y=north, heading 0°=north, CW positive
+        self.x: float = self.cfg.start_x_in
+        self.y: float = self.cfg.start_y_in
+        import math as _m
+
+        self.heading_rad: float = _m.radians(self.cfg.start_heading_deg)
+
+        # Velocities (SI, CW positive for angular)
+        self.linear_vel: float = 0.0
+        self.angular_vel: float = 0.0
+
+        # Computed wall distances (mm)
         self.dist_front_mm: float = 2000.0
         self.dist_right_mm: float = 2000.0
         self.dist_left_mm: float = 2000.0
@@ -51,7 +63,7 @@ class RobotState:
     def get_or_create_motor(self, port: int) -> Motor:
         """Get motor or create if doesn't exist."""
         if port not in self.motors:
-            self.motors[port] = Motor(port)
+            self.motors[port] = Motor(port, max_rpm=self.cfg.motor_max_rpm)
         return self.motors[port]
 
     def get_or_create_imu(self, port: int) -> IMU:
@@ -77,6 +89,8 @@ class RobotState:
         if cmd.type == MessageType.SET_MOTOR_VOLTAGE:
             motor = self.get_or_create_motor(cmd.port)
             voltage = cmd.params.get("voltage", 0)
+            if cmd.port in self._reversed_ports:
+                voltage = -voltage
             motor.set_voltage(voltage)
 
         elif cmd.type == MessageType.SET_MOTOR_BRAKE_MODE:
@@ -107,37 +121,52 @@ class RobotState:
         No momentum, no ramp-up: motor speeds are applied instantly.
         Any brake (coast/brake/hold) immediately zeroes motor velocity.
         """
-        half_track = self.TRACKWIDTH / 2
+        half_track = self.cfg.track_width_m / 2
 
-        # -- collect motors per side --
-        left_motors = [self.motors[p] for p in self.LEFT_PORTS if p in self.motors]
-        right_motors = [self.motors[p] for p in self.RIGHT_PORTS if p in self.motors]
+        # -- collect motors per side (abs because negative = reversed) --
+        left_motors = [
+            self.motors[abs(p)]
+            for p in self.cfg.left_motor_ports
+            if abs(p) in self.motors
+        ]
+        right_motors = [
+            self.motors[abs(p)]
+            for p in self.cfg.right_motor_ports
+            if abs(p) in self.motors
+        ]
 
         # -- instant target shaft speeds from motor commands --
         if left_motors:
-            omega_left = sum(m.get_target_speed() for m in left_motors) / len(left_motors)
+            omega_left = sum(m.get_target_speed() for m in left_motors) / len(
+                left_motors
+            )
         else:
             omega_left = 0.0
         if right_motors:
-            omega_right = sum(m.get_target_speed() for m in right_motors) / len(right_motors)
+            omega_right = sum(m.get_target_speed() for m in right_motors) / len(
+                right_motors
+            )
         else:
             omega_right = 0.0
 
         # -- convert shaft speeds to ground velocities --
-        v_left = omega_left * self.WHEEL_RADIUS
-        v_right = omega_right * self.WHEEL_RADIUS
+        v_left = omega_left * self.cfg.wheel_radius_m
+        v_right = omega_right * self.cfg.wheel_radius_m
 
         # -- differential drive kinematics (instant, no inertia) --
         self.linear_vel = (v_left + v_right) / 2.0
-        self.angular_vel = (v_right - v_left) / self.TRACKWIDTH
+        # CW-positive: left faster → positive (right turn), right faster → negative (left turn)
+        self.angular_vel = (v_left - v_right) / self.cfg.track_width_m
 
-        # -- integrate pose (field inches, theta=0 -> north) --
+        # -- integrate pose --
+        # Coordinate system: +X=east, +Y=north, heading 0°=north, CW positive
+        # x += v*sin(θ), y += v*cos(θ)  (standard navigation convention)
         self.heading_rad += self.angular_vel * dt
         self.x += self.linear_vel * math.sin(self.heading_rad) * dt * self.IN_PER_M
         self.y += self.linear_vel * math.cos(self.heading_rad) * dt * self.IN_PER_M
 
         # -- wall collisions (clamp position, project velocity) --
-        half_robot = 9.0  # robot is 18x18 in
+        half_robot = self.cfg.half_robot_in
         vx = self.linear_vel * math.sin(self.heading_rad)
         vy = self.linear_vel * math.cos(self.heading_rad)
         clamped = False
@@ -167,8 +196,12 @@ class RobotState:
             self.linear_vel = vx * s + vy * c
 
         # -- update motor sensor states --
-        omega_left_actual = (self.linear_vel - self.angular_vel * half_track) / self.WHEEL_RADIUS
-        omega_right_actual = (self.linear_vel + self.angular_vel * half_track) / self.WHEEL_RADIUS
+        omega_left_actual = (
+            self.linear_vel - self.angular_vel * half_track
+        ) / self.cfg.wheel_radius_m
+        omega_right_actual = (
+            self.linear_vel + self.angular_vel * half_track
+        ) / self.cfg.wheel_radius_m
         for m in left_motors:
             m.update_state(omega_left_actual, dt)
         for m in right_motors:
@@ -179,10 +212,20 @@ class RobotState:
         for imu in self.imus.values():
             imu.update(dt, angular_vel_dps)
 
-        # ── rotation sensors (coupled to same‑port motor) ──
+        # ── rotation sensors (dead wheels) ──
         for port, rotation in self.rotation_sensors.items():
-            motor_vel = self.motors[port].velocity_rpm if port in self.motors else 0.0
-            rotation.update(dt, motor_vel)
+            mount = self._dead_wheel_mounts.get(port)
+            if mount is None:
+                continue
+            if mount.orientation == "forward":
+                # Measures forward velocity at the wheel's lateral offset
+                ground_vel = self.linear_vel - self.angular_vel * (
+                    mount.offset_right * 0.0254
+                )
+            else:  # "lateral"
+                # Measures lateral velocity at the wheel's forward offset
+                ground_vel = self.angular_vel * (mount.offset_forward * 0.0254)
+            rotation.update(dt, ground_vel, mount.wheel_radius_m)
 
         # ── distance sensors ──
         self._update_distance_sensors()
@@ -200,13 +243,31 @@ class RobotState:
             fdy = dx * cos_h + dy * sin_h
             return self._raycast(ox, oy, fdx, fdy) * 25.4  # → mm
 
-        self.dist_front_mm = _dist(9.0, 0.0, 1.0, 0.0)
-        self.dist_right_mm = _dist(0.0, -9.0, 0.0, -1.0)
-        self.dist_left_mm = _dist(0.0, 9.0, 0.0, 1.0)
-
-        # Mirror into any port‑based DistanceSensor objects
-        for sensor in self.distance_sensors.values():
-            sensor.distance_mm = int(self.dist_front_mm)
+        # Use configured sensor mounts, or fall back to defaults
+        if self.cfg.distance_sensors:
+            for mount in self.cfg.distance_sensors:
+                d_mm = _dist(
+                    mount.offset_forward,
+                    -mount.offset_right,
+                    mount._dx,
+                    mount._dy,
+                )
+                if mount.port in self.distance_sensors:
+                    self.distance_sensors[mount.port].distance_mm = int(d_mm)
+                # Also keep convenience attrs for the first three
+                if mount.direction == "forward":
+                    self.dist_front_mm = d_mm
+                elif mount.direction == "right":
+                    self.dist_right_mm = d_mm
+                elif mount.direction == "left":
+                    self.dist_left_mm = d_mm
+        else:
+            hs = self.cfg.half_robot_in
+            self.dist_front_mm = _dist(hs, 0.0, 1.0, 0.0)
+            self.dist_right_mm = _dist(0.0, -hs, 0.0, -1.0)
+            self.dist_left_mm = _dist(0.0, hs, 0.0, 1.0)
+            for sensor in self.distance_sensors.values():
+                sensor.distance_mm = int(self.dist_front_mm)
 
     @staticmethod
     def _raycast(ox: float, oy: float, dx: float, dy: float) -> float:

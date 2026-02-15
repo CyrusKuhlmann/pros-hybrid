@@ -11,19 +11,19 @@
 
 Odom odom;
 pros::Controller master(pros::E_CONTROLLER_MASTER);
-pros::MotorGroup left_motors({-1, -2, -4});
-pros::MotorGroup right_motors({11, 12, 13});
+pros::MotorGroup left_motors({ -1, -2, -4 });
+pros::MotorGroup right_motors({ 11, 12, 13 });
 
 // create levers and pneumatics
 pros::adi::Pneumatics matchLoadLeft = pros::adi::Pneumatics('A', false);
 pros::adi::Pneumatics matchLoadRight = pros::adi::Pneumatics('H', false);
-Lever matchLoadLever({&matchLoadLeft, &matchLoadRight});
+Lever matchLoadLever({ &matchLoadLeft, &matchLoadRight });
 
 pros::adi::Pneumatics wing = pros::adi::Pneumatics('B', false);
-Lever wingLever({&wing});
+Lever wingLever({ &wing });
 
 pros::adi::Pneumatics hood = pros::adi::Pneumatics('G', false);
-Lever hoodLever({&hood});
+Lever hoodLever({ &hood });
 
 // create intake motors (update port numbers as needed)
 pros::Motor bottomRoller(-17);  // 11W blue motor
@@ -41,12 +41,12 @@ MotionControllerSettings lateralSettings = {
     39.0,  // kD - derivative gain (start at 3x kP, reduces overshoot)
     3.0,   // Anti-windup range (inches)
     0.5,   // Small error range (inches) - motion exits if within this for
-           // timeout
-    100,   // Small error timeout (ms)
-    2.0,   // Large error range (inches) - motion exits if within this for
-           // timeout
-    300,   // Large error timeout (ms)
-    8      // Slew rate (max acceleration, lower = smoother but slower)
+    // timeout
+100,   // Small error timeout (ms)
+2.0,   // Large error range (inches) - motion exits if within this for
+// timeout
+300,   // Large error timeout (ms)
+8      // Slew rate (max acceleration, lower = smoother but slower)
 };
 
 // Angular (turning) controller settings
@@ -71,7 +71,8 @@ void on_center_button() {
   pressed = !pressed;
   if (pressed) {
     pros::lcd::set_text(2, "I was pressed!");
-  } else {
+  }
+  else {
     pros::lcd::clear_line(2);
   }
 }
@@ -97,10 +98,13 @@ void disabled() {}
 void competition_initialize() {}
 
 void autonomous() {
-  left_auton(actor, intake, matchLoadLever, wingLever, hoodLever);
+  right_auton(actor, intake, matchLoadLever, wingLever, hoodLever);
+  // cout the odometry position at the end of auton for debugging
+  Eigen::Vector2d pos = odom.get_xy_inches();
+  printf("Final Position - X: %.2f, Y: %.2f\n", pos.x(), pos.y());
 }
 
 void opcontrol() {
   user_control_loop(master, left_motors, right_motors, matchLoadLever,
-                    wingLever, hoodLever, intake);
+    wingLever, hoodLever, intake);
 }

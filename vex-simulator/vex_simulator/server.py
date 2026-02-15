@@ -6,6 +6,7 @@ import asyncio
 import json
 from typing import TYPE_CHECKING
 
+from vex_simulator.config import RobotConfig, load_config
 from vex_simulator.protocol import CommandMessage, MessageType
 from vex_simulator.robot_state import RobotState
 
@@ -16,11 +17,16 @@ if TYPE_CHECKING:
 class SimulatorServer:
     """TCP server that handles client connections and simulation loop."""
 
-    def __init__(self, host: str = "127.0.0.1", port: int = 9090) -> None:
+    def __init__(
+        self,
+        host: str = "127.0.0.1",
+        port: int = 9090,
+        config: RobotConfig | None = None,
+    ) -> None:
         """Initialize server."""
         self.host = host
         self.port = port
-        self.robot = RobotState()
+        self.robot = RobotState(config)
         self.clients: list[tuple[asyncio.StreamReader, asyncio.StreamWriter]] = []
         self.running = False
 
@@ -120,7 +126,8 @@ class SimulatorServer:
 
 async def main() -> None:
     """Main entry point."""
-    server = SimulatorServer()
+    config = load_config()
+    server = SimulatorServer(config=config)
     await server.run()
 
 

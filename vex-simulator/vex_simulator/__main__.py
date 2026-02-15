@@ -6,13 +6,20 @@ import asyncio
 import sys
 import threading
 
+from vex_simulator.config import load_config
 from vex_simulator.server import SimulatorServer
 from vex_simulator.visualizer import Visualizer
 
 
 def run() -> None:
     """Run the simulator with the pygame visual display."""
-    server = SimulatorServer()
+    config = load_config()  # reads robot_config.toml from cwd
+    print(
+        f'Loaded config: {config.wheel_diameter_in}" wheels, '
+        f'{config.track_width_in}" track, {config.motor_max_rpm} RPM, '
+        f'{config.robot_size_in}" chassis'
+    )
+    server = SimulatorServer(config=config)
 
     # Start the async TCP server in a daemon thread
     def _serve() -> None:
