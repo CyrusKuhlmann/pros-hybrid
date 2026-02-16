@@ -12,21 +12,36 @@ if TYPE_CHECKING:
 
 
 class Motor:
-    """Simulated V5 smart motor — perfect-world (instant response).
+    """Simulated V5 smart motor with realistic torque-speed curve.
 
-    Assumes a perfect world: motor commands reach full speed instantly
-    with no ramp-up, and any brake command immediately stops the motor.
+    Models the linear torque-speed relationship of a DC motor:
+      torque = stall_torque * (voltage_fraction - speed / free_speed)
+
+    A dead-zone below ~5% voltage prevents jitter from tiny commands.
     """
 
     MAX_CMD: int = 127
+
+    # V5 motor constants (11W smart motor, 200 RPM green cartridge baseline)
+    # Stall torque ~2.1 N·m for 200 RPM green cartridge.
+    # Scaled proportionally for other cartridges via gear ratio.
+    _BASE_RPM: float = 200.0
+    _BASE_STALL_TORQUE: float = 2.1  # N·m at 200 RPM gearing
+
+    # Dead-zone: commands below this fraction of 127 produce no torque.
+    DEAD_ZONE_FRAC: float = 0.04  # ~5/127
 
     def __init__(self, port: int, max_rpm: float = 200.0) -> None:
         """Initialize motor on *port* with the given *max_rpm*."""
         self.port = port
         self.max_rpm = max_rpm
         self.free_speed: float = max_rpm * math.pi / 30.0  # rad/s
+        # Stall torque scales inversely with gear ratio (higher RPM = less torque)
+        self.stall_torque: float = self._BASE_STALL_TORQUE * (self._BASE_RPM / max_rpm)
+
         self.voltage_cmd: int = 0  # raw command −127…+127
         self.brake_mode: BrakeMode = BrakeMode.COAST
+
         # Sensor state — written by the physics engine every tick
         self.velocity_rpm: float = 0.0
         self.position_deg: float = 0.0
@@ -41,11 +56,7 @@ class Motor:
         self.voltage_cmd = max(-self.MAX_CMD, min(self.MAX_CMD, voltage))
 
     def set_brake_mode(self, mode: BrakeMode) -> None:
-        """Set brake behaviour for when voltage is zero.
-
-        In perfect‑world mode all brake types behave identically:
-        the motor stops instantly and velocity goes to zero.
-        """
+        """Set brake behaviour for when voltage is zero."""
         self.brake_mode = mode
 
     def tare_position(self) -> None:
@@ -54,23 +65,28 @@ class Motor:
 
     # ── physics interface (called by RobotState) ─────────────────
 
-    def get_target_speed(self) -> float:
-        """Return the ideal shaft speed [rad/s] for the current command.
+    def get_torque(self, shaft_speed_rads: float) -> float:
+        """Return motor output torque [N·m] given current shaft speed.
 
-        Perfect world: speed is an instant linear function of voltage.
-        When voltage is zero (any brake mode) speed is immediately zero.
+        Uses the DC motor torque-speed curve:
+          T = T_stall * (V_frac - ω / ω_free)
+        with a dead-zone: if |V_frac| < DEAD_ZONE, T = 0.
         """
-        if self.voltage_cmd == 0:
+        v_frac = self.voltage_cmd / self.MAX_CMD
+
+        # Dead-zone: tiny voltage commands produce no torque
+        if abs(v_frac) < self.DEAD_ZONE_FRAC:
+            # Brake / hold modes actively resist motion
+            if self.brake_mode in (BrakeMode.BRAKE, BrakeMode.HOLD):
+                return -self.stall_torque * (shaft_speed_rads / self.free_speed)
             return 0.0
-        return (self.voltage_cmd / self.MAX_CMD) * self.free_speed
+
+        return self.stall_torque * (v_frac - shaft_speed_rads / self.free_speed)
 
     def update_state(self, shaft_rads: float, dt: float) -> None:
         """Write sensor readings from physics‑engine results."""
         self.velocity_rpm = shaft_rads * 30.0 / math.pi
         self.position_deg += math.degrees(shaft_rads) * dt
-        self.torque_nm = 0.0  # perfect world — torque not modelled
-        self.current_ma = 0
-        self.temperature_c = 25.0  # no thermal effects
 
     def get_state(self) -> dict[str, float]:
         """Motor state dict sent to client."""

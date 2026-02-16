@@ -5,7 +5,7 @@
 #include "Eigen/Dense"
 #include "api.h"
 
-pros::v5::Rotation lateral_rot(15);
+pros::v5::Rotation lateral_rot(-15);
 pros::v5::Rotation forward_rot(18);
 pros::v5::Imu imu(16);
 
@@ -27,11 +27,11 @@ void Odom::update_xy() {
   prev_xy = xy;
   Eigen::Matrix<double, 2, 1> delta_xy;
   delta_xy << lateral_pod.get_corrected_delta_inches(),
-      forward_pod.get_corrected_delta_inches();
+    forward_pod.get_corrected_delta_inches();
   Eigen::Matrix<double, 2, 2> R_average_theta;
   double average_theta_radians = deg_to_rad(-average_theta_degrees);
   R_average_theta << cos(average_theta_radians), -sin(average_theta_radians),
-      sin(average_theta_radians), cos(average_theta_radians);
+    sin(average_theta_radians), cos(average_theta_radians);
   xy = prev_xy + R_average_theta * delta_xy;
 }
 
@@ -67,9 +67,11 @@ double Odom::angle_to_heading_degrees(double target_degrees) {
   double shortest_angle;
   if (raw_difference > 180.0) {
     shortest_angle = raw_difference - 360.0;
-  } else if (raw_difference <= -180.0) {
+  }
+  else if (raw_difference <= -180.0) {
     shortest_angle = raw_difference + 360.0;
-  } else {
+  }
+  else {
     shortest_angle = raw_difference;
   }
   return shortest_angle;
@@ -81,7 +83,7 @@ double Odom::distance_to_point_inches(Eigen::Matrix<double, 2, 1> target_xy) {
 double Odom::angle_to_point_degrees(Eigen::Matrix<double, 2, 1> target_xy) {
   Eigen::Matrix<double, 2, 1> delta_xy = target_xy - xy;
   double target_degrees =
-      90 - rad_to_deg(atan2(delta_xy(1, 0), delta_xy(0, 0)));
+    90 - rad_to_deg(atan2(delta_xy(1, 0), delta_xy(0, 0)));
   pros::lcd::print(3, "Target degrees: %.2f", target_degrees);
   return angle_to_heading_degrees(target_degrees);
 }

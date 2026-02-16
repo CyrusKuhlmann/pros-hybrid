@@ -79,6 +79,11 @@ class RobotConfig:
     start_y_in: float
     start_heading_deg: float
 
+    # -- Physics tuning (reasonable defaults) --------------------------------
+    robot_mass_kg: float = 7.0  # ~15 lbs competition robot
+    robot_moi_kg_m2: float = 0.12  # Moment of inertia about vertical axis
+    rolling_friction_coeff: float = 0.02  # Coulomb friction (force = coeff * m * g)
+
     # -- Sensor mounts -------------------------------------------------------
     distance_sensors: list[SensorMount] = field(default_factory=list)
     imu_port: int | None = None
@@ -147,6 +152,7 @@ def _parse(raw: dict) -> RobotConfig:
     ch = raw["chassis"]
     sp = raw["start_pose"]
     sensors = raw.get("sensors", {})
+    phys = raw.get("physics", {})
 
     distance_sensors = [
         SensorMount(
@@ -182,4 +188,7 @@ def _parse(raw: dict) -> RobotConfig:
         distance_sensors=distance_sensors,
         imu_port=int(sensors["imu_port"]) if "imu_port" in sensors else None,
         rotation_sensors=rotation_sensors,
+        robot_mass_kg=float(phys.get("robot_mass_kg", 7.0)),
+        robot_moi_kg_m2=float(phys.get("robot_moi_kg_m2", 0.12)),
+        rolling_friction_coeff=float(phys.get("rolling_friction_coeff", 0.02)),
     )

@@ -7,7 +7,7 @@
 # ── Drivetrain ──────────────────────────────────────────
 [drivetrain]
 wheel_diameter_in   = 3.25        # Wheel diameter (common: 2.75, 3.25, 4.0)
-track_width_in      = 14.0       # Centre-to-centre distance between left & right wheels
+track_width_in      = 11.67       # Centre-to-centre distance between left & right wheels
 motor_max_rpm       = 450.0      # Motor cartridge free speed (green=200, blue=600, red=100)
 left_motor_ports    = [-1, -2, -4]  # Ports for left-side drive motors
 right_motor_ports   = [11, 12, 13]  # Ports for right-side drive motors
@@ -15,6 +15,14 @@ right_motor_ports   = [11, 12, 13]  # Ports for right-side drive motors
 # ── Chassis ─────────────────────────────────────────────
 [chassis]
 robot_size_in = 18.0             # Robot footprint (square, side length in inches)
+
+# ── Physics Tuning ──────────────────────────────────────
+# These values control how realistic the robot's acceleration
+# and deceleration feel.  Adjust to match your robot's weight.
+[physics]
+robot_mass_kg          = 10.0    # Total robot mass in kg (~15 lbs)
+robot_moi_kg_m2        = 0.17   # Rotational moment of inertia (kg·m²)
+rolling_friction_coeff = 0.1   # Rolling friction coefficient
 
 # ── Starting Pose ───────────────────────────────────────
 [start_pose]
@@ -50,22 +58,22 @@ offset_right   = -9.0
 direction      = "left"
 
 # Rotation sensors — dead wheels (unpowered tracking wheels).
-# port              = sensor port number
+# port              = sensor port number (negative = reversed value)
 # offset_forward    = inches forward from robot centre (negative = behind)
 # offset_right      = inches right from robot centre (negative = left)
 # orientation       = "forward" (rolls with forward motion) or "lateral" (rolls sideways)
 # wheel_diameter_in = dead-wheel diameter in inches
 
 [[sensors.rotation]]
-port              = 18
-offset_forward    = -8.0
+port              = -18
+offset_forward    = -5.0
 offset_right      = 0
 orientation       = "forward"
 wheel_diameter_in = 2
 
 [[sensors.rotation]]
-port              = 15 
-offset_forward    = -3
-offset_right      = 1
+port              = -15 
+offset_forward    = -1.5
+offset_right      = 0.3
 orientation       = "lateral"
 wheel_diameter_in = 2

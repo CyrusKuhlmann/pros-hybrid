@@ -39,10 +39,16 @@ class RobotState:
             if p < 0:
                 self._reversed_ports.add(abs(p))
 
+        # Rotation sensor ports listed as negative are reversed (value negated)
+        self._reversed_rotation_ports: set[int] = set()
+
         # Pre-create rotation sensors from config dead-wheel mounts
         for mount in self.cfg.rotation_sensors:
-            self._dead_wheel_mounts[mount.port] = mount
-            self.rotation_sensors[mount.port] = RotationSensor(mount.port)
+            abs_port = abs(mount.port)
+            if mount.port < 0:
+                self._reversed_rotation_ports.add(abs_port)
+            self._dead_wheel_mounts[abs_port] = mount
+            self.rotation_sensors[abs_port] = RotationSensor(abs_port)
 
         # Pose: +X=east, +Y=north, heading 0°=north, CW positive
         self.x: float = self.cfg.start_x_in
@@ -116,12 +122,24 @@ class RobotState:
             rotation.set_position(position)
 
     def update(self, dt: float) -> None:
-        """Advance perfect-world physics by *dt* seconds.
+        """Advance physics by *dt* seconds using a force/torque model.
 
-        No momentum, no ramp-up: motor speeds are applied instantly.
-        Any brake (coast/brake/hold) immediately zeroes motor velocity.
+        Instead of instantly setting velocity from motor commands, motors
+        produce torque according to their torque-speed curve.  That torque
+        is converted to a net force/moment on the chassis, then integrated
+        via F=ma to update velocity and position.  This naturally produces
+        realistic acceleration, deceleration, and prevents the instant
+        direction-reversal flicker seen with the old instant model.
         """
+        R = self.cfg.wheel_radius_m
         half_track = self.cfg.track_width_m / 2
+        mass = self.cfg.robot_mass_kg
+        moi = self.cfg.robot_moi_kg_m2
+
+        # -- derive current per-side shaft speeds from chassis velocity --
+        # CW-positive angular_vel: left wheel is outer (faster), right is inner (slower)
+        omega_left_shaft = (self.linear_vel + self.angular_vel * half_track) / R
+        omega_right_shaft = (self.linear_vel - self.angular_vel * half_track) / R
 
         # -- collect motors per side (abs because negative = reversed) --
         left_motors = [
@@ -135,32 +153,41 @@ class RobotState:
             if abs(p) in self.motors
         ]
 
-        # -- instant target shaft speeds from motor commands --
-        if left_motors:
-            omega_left = sum(m.get_target_speed() for m in left_motors) / len(
-                left_motors
-            )
-        else:
-            omega_left = 0.0
-        if right_motors:
-            omega_right = sum(m.get_target_speed() for m in right_motors) / len(
-                right_motors
-            )
-        else:
-            omega_right = 0.0
+        # -- sum motor torques per side --
+        tau_left = sum(m.get_torque(omega_left_shaft) for m in left_motors)
+        tau_right = sum(m.get_torque(omega_right_shaft) for m in right_motors)
 
-        # -- convert shaft speeds to ground velocities --
-        v_left = omega_left * self.cfg.wheel_radius_m
-        v_right = omega_right * self.cfg.wheel_radius_m
+        # -- convert wheel torques to chassis force & moment --
+        # Force at wheel contact = torque / radius
+        f_left = tau_left / R
+        f_right = tau_right / R
 
-        # -- differential drive kinematics (instant, no inertia) --
-        self.linear_vel = (v_left + v_right) / 2.0
-        # CW-positive: left faster → positive (right turn), right faster → negative (left turn)
-        self.angular_vel = (v_left - v_right) / self.cfg.track_width_m
+        net_force = f_left + f_right  # forward force on chassis [N]
+        net_moment = (f_left - f_right) * half_track  # CW moment [N·m]
+
+        # -- rolling friction (opposes current velocity) --
+        g = 9.81
+        friction_force = self.cfg.rolling_friction_coeff * mass * g
+        if abs(self.linear_vel) > 1e-4:
+            net_force -= math.copysign(friction_force, self.linear_vel)
+        friction_moment = self.cfg.rolling_friction_coeff * mass * g * half_track
+        if abs(self.angular_vel) > 1e-4:
+            net_moment -= math.copysign(friction_moment, self.angular_vel)
+
+        # -- integrate: F=ma  →  Δv = (F/m)·dt --
+        linear_accel = net_force / mass
+        angular_accel = net_moment / moi
+
+        self.linear_vel += linear_accel * dt
+        self.angular_vel += angular_accel * dt
+
+        # -- prevent friction from reversing velocity (static friction clamp) --
+        if abs(self.linear_vel) < 1e-4 and abs(net_force) < friction_force:
+            self.linear_vel = 0.0
+        if abs(self.angular_vel) < 1e-3 and abs(net_moment) < friction_moment:
+            self.angular_vel = 0.0
 
         # -- integrate pose --
-        # Coordinate system: +X=east, +Y=north, heading 0°=north, CW positive
-        # x += v*sin(θ), y += v*cos(θ)  (standard navigation convention)
         self.heading_rad += self.angular_vel * dt
         self.x += self.linear_vel * math.sin(self.heading_rad) * dt * self.IN_PER_M
         self.y += self.linear_vel * math.cos(self.heading_rad) * dt * self.IN_PER_M
@@ -195,13 +222,11 @@ class RobotState:
             c = math.cos(self.heading_rad)
             self.linear_vel = vx * s + vy * c
 
+        # -- update per-side shaft speeds after physics step --
+        omega_left_actual = (self.linear_vel + self.angular_vel * half_track) / R
+        omega_right_actual = (self.linear_vel - self.angular_vel * half_track) / R
+
         # -- update motor sensor states --
-        omega_left_actual = (
-            self.linear_vel - self.angular_vel * half_track
-        ) / self.cfg.wheel_radius_m
-        omega_right_actual = (
-            self.linear_vel + self.angular_vel * half_track
-        ) / self.cfg.wheel_radius_m
         for m in left_motors:
             m.update_state(omega_left_actual, dt)
         for m in right_motors:
@@ -218,13 +243,14 @@ class RobotState:
             if mount is None:
                 continue
             if mount.orientation == "forward":
-                # Measures forward velocity at the wheel's lateral offset
                 ground_vel = self.linear_vel - self.angular_vel * (
                     mount.offset_right * 0.0254
                 )
             else:  # "lateral"
-                # Measures lateral velocity at the wheel's forward offset
                 ground_vel = self.angular_vel * (mount.offset_forward * 0.0254)
+            # Negative port in config → reversed sensor value
+            if port in self._reversed_rotation_ports:
+                ground_vel = -ground_vel
             rotation.update(dt, ground_vel, mount.wheel_radius_m)
 
         # ── distance sensors ──

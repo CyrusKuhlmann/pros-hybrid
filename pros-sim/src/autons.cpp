@@ -47,8 +47,7 @@ void left_auton(Actor& actor, Intake& intake, Lever& matchLoadLever, Lever& wing
   // next part
 
   actor.moveToPoint(-40.5, 1, { .forwards = true, .maxSpeed = 60, .minSpeed = 40, .earlyExitRange = 13 }, 1200);
-  actor.moveToPoint(-41, 1, { .forwards = true
-    , .maxSpeed = 40, .earlyExitRange = 0 }, 1000);
+  actor.moveToPoint(-41, 1, { .forwards = true, .maxSpeed = 40, .earlyExitRange = 0 }, 1000);
   actor.turnToHeading(-180, { .maxSpeed = 50, .earlyExitRange = 0 }, 1100);
 
   //   // advanced match load
@@ -76,4 +75,5 @@ void skills_auton(Actor& actor, Intake& intake, Lever& matchLoadLever, Lever& wi
 
 void test_auton(Actor& actor, Intake& intake, Lever& matchLoadLever, Lever& wingLever, Lever& hoodLever) {
   actor.driveStraight(18, { .forwards = true, .maxSpeed = 50, .earlyExitRange = 0 }, 2000);
+  actor.turnToHeading(90, { .maxSpeed = 50, .earlyExitRange = 0 }, 2000);
 }
