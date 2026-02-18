@@ -4,6 +4,7 @@
 #include "api.h"
 #include "odom.h"
 #include "pid.h"
+#include "pure_pursuit.h"
 
 /**
  * @brief Controller settings for PID motion chaining
@@ -99,7 +100,7 @@ struct SwingToPointParams {
  * Supports motion chaining through minSpeed and earlyExitRange parameters.
  */
 class Actor {
- private:
+private:
   Odom& odom;
   pros::MotorGroup& left_motors;
   pros::MotorGroup& right_motors;
@@ -129,14 +130,14 @@ class Actor {
   void arcade(float throttle, float turn);
   float angleError(float target, float current);
 
- public:
+public:
   /**
    * @brief Construct Actor with custom PID settings
    */
   Actor(Odom& odom_ref, pros::MotorGroup& left_motors_ref,
-        pros::MotorGroup& right_motors_ref,
-        MotionControllerSettings lateral_settings,
-        MotionControllerSettings angular_settings);
+    pros::MotorGroup& right_motors_ref,
+    MotionControllerSettings lateral_settings,
+    MotionControllerSettings angular_settings);
 
   /**
    * @brief Turn the robot by a relative angle
@@ -145,7 +146,7 @@ class Actor {
    * @param timeout Maximum time for movement (ms), 0 = no timeout
    */
   void turnByDegrees(float delta_degrees, TurnToHeadingParams params = {},
-                     int timeout = 5000);
+    int timeout = 5000);
 
   /**
    * @brief Turn to face an absolute heading
@@ -154,7 +155,7 @@ class Actor {
    * @param timeout Maximum time for movement (ms)
    */
   void turnToHeading(float target_degrees, TurnToHeadingParams params = {},
-                     int timeout = 5000);
+    int timeout = 5000);
 
   /**
    * @brief Turn to face a specific point
@@ -164,7 +165,7 @@ class Actor {
    * @param timeout Maximum time for movement (ms)
    */
   void turnToPoint(float x, float y, TurnToPointParams params = {},
-                   int timeout = 5000);
+    int timeout = 5000);
 
   /**
    * @brief Swing turn to face a heading using only one side of the drivetrain
@@ -174,7 +175,7 @@ class Actor {
    * @param timeout Maximum time for movement (ms)
    */
   void swingToHeading(float target_degrees, DriveSide lockedSide,
-                      SwingToHeadingParams params = {}, int timeout = 5000);
+    SwingToHeadingParams params = {}, int timeout = 5000);
 
   /**
    * @brief Swing turn to face a point using only one side of the drivetrain
@@ -185,7 +186,7 @@ class Actor {
    * @param timeout Maximum time for movement (ms)
    */
   void swingToPoint(float x, float y, DriveSide lockedSide,
-                    SwingToPointParams params = {}, int timeout = 5000);
+    SwingToPointParams params = {}, int timeout = 5000);
 
   /**
    * @brief Drive straight for a specified distance
@@ -194,7 +195,7 @@ class Actor {
    * @param timeout Maximum time for movement (ms)
    */
   void driveStraight(float distance_inches, MoveToPointParams params = {},
-                     int timeout = 5000);
+    int timeout = 5000);
 
   /**
    * @brief Move to a specific point on the field
@@ -204,7 +205,7 @@ class Actor {
    * @param timeout Maximum time for movement (ms)
    */
   void moveToPoint(float x, float y, MoveToPointParams params = {},
-                   int timeout = 5000);
+    int timeout = 5000);
 
   /**
    * @brief Move to a pose with specified heading (boomerang controller)
@@ -215,7 +216,7 @@ class Actor {
    * @param timeout Maximum time for movement (ms)
    */
   void moveToPose(float x, float y, float theta, MoveToPoseParams params = {},
-                  int timeout = 5000);
+    int timeout = 5000);
 
   /**
    * @brief Drive at a fixed speed for a specified time
@@ -231,8 +232,8 @@ class Actor {
    * @param wiggle_degrees Amplitude of heading wiggle (degrees)
    */
   void wiggle(float speed_start, float speed_end, float distance_inches,
-              float wiggle_degrees, float wiggle_period,
-              float timeout_milliseconds);
+    float wiggle_degrees, float wiggle_period,
+    float timeout_milliseconds);
 
   /**
    * @brief Get the current pose from odometry
@@ -267,4 +268,44 @@ class Actor {
    * @brief Stop the drivetrain
    */
   void stop();
+
+  // ── Pure-pursuit path following ──────────────────────────────
+
+  /**
+   * @brief Follow a CatmullRomPath using pure pursuit with velocity
+   *        profiling and motion chaining support.
+   *
+   * This is the preferred overload.  Uses FollowPathParams for
+   * per-call speed limits, motion chaining (minSpeed / earlyExitRange),
+   * deceleration ramp, and curvature speed limiting.
+   *
+   * @param path           The geometric path to follow.
+   * @param pursuit        The PurePursuitController to use (holds
+   *                       lookahead, track width, adaptive settings).
+   * @param params         Per-call parameters (speed, chaining, decel).
+   * @param settle_dist    When the robot is within this distance (inches)
+   *                       of the last waypoint, the motion ends.  Default 1.5.
+   * @param timeout        Maximum time (ms).  0 = auto from path length.
+   */
+  void followPath(const CatmullRomPath& path,
+    const PurePursuitController& pursuit,
+    const FollowPathParams& params,
+    double settle_dist = 1.5,
+    int timeout = 0);
+
+  /**
+   * @brief Follow a CatmullRomPath using pure pursuit (legacy API).
+   *
+   * Delegates to the FollowPathParams overload with defaults derived
+   * from the controller's stored max_speed and forwards flag.
+   *
+   * @param path           The geometric path to follow.
+   * @param pursuit        The PurePursuitController to use.
+   * @param settle_dist    Settle distance (inches).  Default 1.5.
+   * @param timeout        Maximum time (ms).  0 = auto.
+   */
+  void followPath(const CatmullRomPath& path,
+    const PurePursuitController& pursuit,
+    double settle_dist = 1.5,
+    int timeout = 0);
 };

@@ -5,10 +5,15 @@ from __future__ import annotations
 import asyncio
 import sys
 import threading
+from pathlib import Path
 
 from vex_simulator.config import load_config
+from vex_simulator.path_loader import parse_paths_from_cpp
 from vex_simulator.server import SimulatorServer
 from vex_simulator.visualizer import Visualizer
+
+# Relative path from this package's directory to the C++ main.cpp
+_PROS_SIM_MAIN = Path(__file__).resolve().parents[2] / "pros-sim" / "src" / "main.cpp"
 
 
 def run() -> None:
@@ -19,6 +24,10 @@ def run() -> None:
         f'{config.track_width_in}" track, {config.motor_max_rpm} RPM, '
         f'{config.robot_size_in}" chassis'
     )
+
+    # Load spline paths from the C++ source
+    paths = parse_paths_from_cpp(_PROS_SIM_MAIN)
+
     server = SimulatorServer(config=config)
 
     # Start the async TCP server in a daemon thread
@@ -35,7 +44,7 @@ def run() -> None:
 
     # Run the visualiser on the main thread (pygame requirement)
     try:
-        viz = Visualizer(server.robot)
+        viz = Visualizer(server.robot, paths=paths)
         viz.run()
     except KeyboardInterrupt:
         pass

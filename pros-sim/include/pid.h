@@ -9,7 +9,7 @@
  * Supports integral anti-windup and optional sign-flip integral reset.
  */
 class PID {
- public:
+public:
     /**
      * @brief Construct a PID controller
      * @param kP Proportional gain
@@ -19,7 +19,8 @@ class PID {
      * @param signFlipReset If true, reset integral when error crosses zero
      */
     PID(float kP, float kI, float kD, float windupRange = 0, bool signFlipReset = false)
-        : kP(kP), kI(kI), kD(kD), windupRange(windupRange), signFlipReset(signFlipReset) {}
+        : kP(kP), kI(kI), kD(kD), windupRange(windupRange), signFlipReset(signFlipReset) {
+    }
 
     /**
      * @brief Update the controller with a new error value
@@ -52,7 +53,7 @@ class PID {
         prevError = 0;
     }
 
- private:
+private:
     const float kP;
     const float kI;
     const float kD;
@@ -66,14 +67,15 @@ class PID {
  * @brief Exit condition based on error staying within a range for a specified time (replaces lemlib::ExitCondition)
  */
 class ExitCondition {
- public:
+public:
     /**
      * @brief Construct an exit condition
      * @param range Error must be below this value
      * @param time Error must stay below range for this many milliseconds
      */
     ExitCondition(float range, int time)
-        : range(range), time(time) {}
+        : range(range), time(time) {
+    }
 
     /**
      * @brief Update with current error and check if exit condition is met
@@ -86,7 +88,8 @@ class ExitCondition {
             if (((int)pros::millis() - startTime) >= time) {
                 done = true;
             }
-        } else {
+        }
+        else {
             startTime = -1;
         }
         return done;
@@ -105,29 +108,9 @@ class ExitCondition {
         done = false;
     }
 
- private:
+private:
     const float range;
     const int time;
     int startTime = -1;
     bool done = false;
-};
-
-/**
- * @brief Simple 2D pose (x, y, heading) — replaces lemlib::Pose
- */
-struct Pose {
-    float x;
-    float y;
-    float theta;
-
-    Pose(float x = 0, float y = 0, float theta = 0) : x(x), y(y), theta(theta) {}
-
-    /**
-     * @brief Euclidean distance to another pose
-     */
-    float distance(const Pose& other) const {
-        float dx = other.x - x;
-        float dy = other.y - y;
-        return std::sqrt(dx * dx + dy * dy);
-    }
 };

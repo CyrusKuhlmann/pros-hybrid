@@ -8,6 +8,12 @@ from typing import TYPE_CHECKING
 
 import pygame  # type: ignore[import-untyped]
 
+from vex_simulator.path_loader import (
+    SplinePath,
+    path_to_field_coords,
+    waypoints_to_field_coords,
+)
+
 if TYPE_CHECKING:
     from vex_simulator.robot_state import RobotState
 
@@ -51,6 +57,11 @@ BEAM_THICKNESS = 3
 C_TRAIL = (100, 180, 255, 90)
 C_FIELD_FALLBACK = (60, 90, 60)
 
+# Path overlay colours
+C_PATH_LINE = (255, 160, 40, 160)  # warm orange spline curve
+C_PATH_WAYPOINT = (255, 80, 80)  # red waypoint dots
+C_PATH_WP_RING = (255, 200, 200, 120)  # light ring around waypoints
+
 # ────────────────────────────────────────────────────────────────────────
 # Robot geometry (robot‑local frame, inches, origin=centre, +x=forward)
 # ────────────────────────────────────────────────────────────────────────
@@ -82,6 +93,7 @@ class Visualizer:
         self,
         robot_state: RobotState,
         field_image: str | Path = DEFAULT_FIELD_IMG,
+        paths: list[SplinePath] | None = None,
     ) -> None:
         pygame.init()
         self.screen = pygame.display.set_mode((WIN_W, WIN_H))
@@ -106,7 +118,37 @@ class Visualizer:
         self._trail: list[tuple[float, float]] = []
         self._trail_max = 800
 
+        # Pre-computed path overlay (field-coordinate polylines)
+        self._paths = paths or []
+        self._path_field_lines: list[list[tuple[float, float]]] = []
+        self._path_field_waypoints: list[list[tuple[float, float]]] = []
+        self._precompute_paths()
+
         self.running = True
+
+    # ── path pre-computation ────────────────────────────────────────────
+    def _precompute_paths(self) -> None:
+        """Transform loaded spline paths into field-coordinate polylines."""
+        start_x = self.robot.cfg.start_x_in
+        start_y = self.robot.cfg.start_y_in
+        start_h = math.radians(self.robot.cfg.start_heading_deg)
+
+        for sp in self._paths:
+            field_pts = path_to_field_coords(
+                sp.points,
+                start_x,
+                start_y,
+                start_h,
+            )
+            self._path_field_lines.append(field_pts)
+
+            wp_pts = waypoints_to_field_coords(
+                sp.waypoints,
+                start_x,
+                start_y,
+                start_h,
+            )
+            self._path_field_waypoints.append(wp_pts)
 
     # ── helpers ──────────────────────────────────────────────────────────
     @staticmethod
@@ -168,6 +210,20 @@ class Visualizer:
                 col = (80, 115, 80)
                 pygame.draw.line(self.screen, col, (px, 0), (px, FIELD_PX), 1)
                 pygame.draw.line(self.screen, col, (0, px), (FIELD_PX, px), 1)
+
+    # ── path overlay ──────────────────────────────────────────────────────
+    def _draw_paths(self) -> None:
+        """Draw all loaded spline paths onto the transparent overlay."""
+        for pts, wps in zip(self._path_field_lines, self._path_field_waypoints):
+            if len(pts) >= 2:
+                screen_pts = [self._f2s(fx, fy) for fx, fy in pts]
+                pygame.draw.lines(self.overlay, C_PATH_LINE, False, screen_pts, 2)
+
+            # Waypoint markers
+            for fx, fy in wps:
+                sx, sy = self._f2s(fx, fy)
+                pygame.draw.circle(self.overlay, C_PATH_WP_RING, (sx, sy), 7)
+                pygame.draw.circle(self.overlay, C_PATH_WAYPOINT, (sx, sy), 4)
 
     # ── trail ────────────────────────────────────────────────────────────
     def _update_trail(self) -> None:
@@ -366,6 +422,7 @@ class Visualizer:
 
             # Draw layers
             self._draw_field()
+            self._draw_paths()
             self._draw_trail()
             self._draw_sensor_beams()
             self.screen.blit(self.overlay, (0, 0))

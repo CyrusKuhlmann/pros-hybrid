@@ -14,26 +14,27 @@ T clampValue(T val, T lo, T hi) {
 // ========== Constructor ==========
 
 Actor::Actor(Odom& odom_ref, pros::MotorGroup& left_motors_ref,
-             pros::MotorGroup& right_motors_ref,
-             MotionControllerSettings lateral_settings,
-             MotionControllerSettings angular_settings)
-    : odom(odom_ref),
-      left_motors(left_motors_ref),
-      right_motors(right_motors_ref),
-      lateralPID(lateral_settings.kP, lateral_settings.kI, lateral_settings.kD,
-                 lateral_settings.windupRange, false),
-      angularPID(angular_settings.kP, angular_settings.kI, angular_settings.kD,
-                 angular_settings.windupRange, true),
-      lateralSettings(lateral_settings),
-      angularSettings(angular_settings),
-      lateralSmallExit(lateral_settings.smallError,
-                       lateral_settings.smallErrorTimeout),
-      lateralLargeExit(lateral_settings.largeError,
-                       lateral_settings.largeErrorTimeout),
-      angularSmallExit(angular_settings.smallError,
-                       angular_settings.smallErrorTimeout),
-      angularLargeExit(angular_settings.largeError,
-                       angular_settings.largeErrorTimeout) {}
+  pros::MotorGroup& right_motors_ref,
+  MotionControllerSettings lateral_settings,
+  MotionControllerSettings angular_settings)
+  : odom(odom_ref),
+  left_motors(left_motors_ref),
+  right_motors(right_motors_ref),
+  lateralPID(lateral_settings.kP, lateral_settings.kI, lateral_settings.kD,
+    lateral_settings.windupRange, false),
+  angularPID(angular_settings.kP, angular_settings.kI, angular_settings.kD,
+    angular_settings.windupRange, true),
+  lateralSettings(lateral_settings),
+  angularSettings(angular_settings),
+  lateralSmallExit(lateral_settings.smallError,
+    lateral_settings.smallErrorTimeout),
+  lateralLargeExit(lateral_settings.largeError,
+    lateral_settings.largeErrorTimeout),
+  angularSmallExit(angular_settings.smallError,
+    angular_settings.smallErrorTimeout),
+  angularLargeExit(angular_settings.largeError,
+    angular_settings.largeErrorTimeout) {
+}
 
 // ========== Helper Functions ==========
 
@@ -95,14 +96,14 @@ void Actor::stop() {
 // ========== Turn Functions ==========
 
 void Actor::turnByDegrees(float delta_degrees, TurnToHeadingParams params,
-                          int timeout) {
+  int timeout) {
   float startHeading = odom.get_theta_degrees();
   float targetHeading = startHeading + delta_degrees;
   turnToHeading(targetHeading, params, timeout);
 }
 
 void Actor::turnToHeading(float target_degrees, TurnToHeadingParams params,
-                          int timeout) {
+  int timeout) {
   pros::lcd::print(2, "Turning to %.2f deg", target_degrees);
 
   // Reset state
@@ -137,7 +138,7 @@ void Actor::turnToHeading(float target_degrees, TurnToHeadingParams params,
 
     // Handle minimum speed for motion chaining
     if (params.minSpeed != 0 && std::abs(output) < params.minSpeed &&
-        std::abs(error) > 0.5f) {
+      std::abs(error) > 0.5f) {
       output = (output > 0 ? params.minSpeed : -params.minSpeed);
     }
 
@@ -168,7 +169,7 @@ void Actor::turnToHeading(float target_degrees, TurnToHeadingParams params,
 }
 
 void Actor::turnToPoint(float x, float y, TurnToPointParams params,
-                        int timeout) {
+  int timeout) {
   Pose pose = getPose();
 
   // Calculate target heading
@@ -196,9 +197,9 @@ void Actor::turnToPoint(float x, float y, TurnToPointParams params,
 // ========== Swing Turn Functions ==========
 
 void Actor::swingToHeading(float target_degrees, DriveSide lockedSide,
-                           SwingToHeadingParams params, int timeout) {
+  SwingToHeadingParams params, int timeout) {
   pros::lcd::print(2, "Swing to %.2f deg (%s locked)", target_degrees,
-                   lockedSide == DriveSide::LEFT ? "L" : "R");
+    lockedSide == DriveSide::LEFT ? "L" : "R");
 
   // Reset state
   angularPID.reset();
@@ -232,7 +233,7 @@ void Actor::swingToHeading(float target_degrees, DriveSide lockedSide,
 
     // Handle minimum speed for motion chaining
     if (params.minSpeed != 0 && std::abs(output) < params.minSpeed &&
-        std::abs(error) > 0.5f) {
+      std::abs(error) > 0.5f) {
       output = (output > 0 ? params.minSpeed : -params.minSpeed);
     }
 
@@ -247,7 +248,8 @@ void Actor::swingToHeading(float target_degrees, DriveSide lockedSide,
       // Left side locked (stationary), right side moves
       // Positive error = need to turn CW = right wheels forward
       tank(0, -output);
-    } else {
+    }
+    else {
       // Right side locked (stationary), left side moves
       // Positive error = need to turn CW = left wheels forward
       tank(output, 0);
@@ -277,7 +279,7 @@ void Actor::swingToHeading(float target_degrees, DriveSide lockedSide,
 }
 
 void Actor::swingToPoint(float x, float y, DriveSide lockedSide,
-                         SwingToPointParams params, int timeout) {
+  SwingToPointParams params, int timeout) {
   Pose pose = getPose();
 
   // Calculate target heading to face the point
@@ -306,7 +308,7 @@ void Actor::swingToPoint(float x, float y, DriveSide lockedSide,
 // ========== Drive Functions ==========
 
 void Actor::driveStraight(float distance_inches, MoveToPointParams params,
-                          int timeout) {
+  int timeout) {
   pros::lcd::print(2, "Driving %.2f in", distance_inches);
 
   // Reset state
@@ -345,19 +347,19 @@ void Actor::driveStraight(float distance_inches, MoveToPointParams params,
 
     // Apply slew rate limiting
     lateralOutput =
-        slew(lateralOutput, prevLateralOutput, lateralSettings.slew);
+      slew(lateralOutput, prevLateralOutput, lateralSettings.slew);
     angularOutput =
-        slew(angularOutput, prevAngularOutput, angularSettings.slew * 0.5f);
+      slew(angularOutput, prevAngularOutput, angularSettings.slew * 0.5f);
     prevLateralOutput = lateralOutput;
     prevAngularOutput = angularOutput;
 
     // Clamp to speed limits
     lateralOutput =
-        clampValue(lateralOutput, -params.maxSpeed, params.maxSpeed);
+      clampValue(lateralOutput, -params.maxSpeed, params.maxSpeed);
 
     // Handle minimum speed for motion chaining
     if (params.minSpeed != 0 && std::abs(lateralOutput) < params.minSpeed &&
-        distanceError > 0.5f) {
+      distanceError > 0.5f) {
       lateralOutput = params.minSpeed * direction;
     }
 
@@ -403,7 +405,7 @@ void Actor::driveTime(float time_ms, float speed_percent) {
 
     left = clampValue(left, -std::abs(speed_percent), std::abs(speed_percent));
     right =
-        clampValue(right, -std::abs(speed_percent), std::abs(speed_percent));
+      clampValue(right, -std::abs(speed_percent), std::abs(speed_percent));
 
     tank(left, right);
     pros::delay(DT_MS);
@@ -415,7 +417,7 @@ void Actor::driveTime(float time_ms, float speed_percent) {
 // ========== Point-to-Point Navigation ==========
 
 void Actor::moveToPoint(float x, float y, MoveToPointParams params,
-                        int timeout) {
+  int timeout) {
   pros::lcd::print(2, "Moving to (%.1f, %.1f)", x, y);
 
   // Get current pose
@@ -448,7 +450,7 @@ void Actor::moveToPoint(float x, float y, MoveToPointParams params,
   turnParams.maxSpeed = params.maxSpeed;
   turnParams.minSpeed = params.minSpeed;
   turnParams.earlyExitRange =
-      params.earlyExitRange > 0 ? 5.0f : 0;  // Use 5 deg early exit if chaining
+    params.earlyExitRange > 0 ? 5.0f : 0;  // Use 5 deg early exit if chaining
   turnToHeading(targetHeading, turnParams, turnTimeout);
 
   // Step 2: Drive straight to the target
@@ -460,7 +462,7 @@ void Actor::moveToPoint(float x, float y, MoveToPointParams params,
 
   // Drive the remaining distance (negative if backwards)
   float driveDistance =
-      params.forwards ? remainingDistance : -remainingDistance;
+    params.forwards ? remainingDistance : -remainingDistance;
 
   MoveToPointParams driveParams;
   driveParams.forwards = params.forwards;
@@ -473,7 +475,7 @@ void Actor::moveToPoint(float x, float y, MoveToPointParams params,
 // ========== Boomerang Controller (Move to Pose) ==========
 
 void Actor::moveToPose(float x, float y, float theta, MoveToPoseParams params,
-                       int timeout) {
+  int timeout) {
   pros::lcd::print(2, "Moving to pose (%.1f, %.1f, %.1f)", x, y, theta);
 
   // Reset state
@@ -517,7 +519,8 @@ void Actor::moveToPose(float x, float y, float theta, MoveToPoseParams params,
       // Place carrot in direction of target heading, behind the target
       carrotX = x - carrotDistance * std::sin(targetHeadingRad);
       carrotY = y - carrotDistance * std::cos(targetHeadingRad);
-    } else {
+    }
+    else {
       // Close to target, aim directly at final position
       carrotX = x;
       carrotY = y;
@@ -527,7 +530,7 @@ void Actor::moveToPose(float x, float y, float theta, MoveToPoseParams params,
     float carrotDx = carrotX - pose.x;
     float carrotDy = carrotY - pose.y;
     float targetHeading =
-        90.0f - std::atan2(carrotDy, carrotDx) * 180.0f / M_PI;
+      90.0f - std::atan2(carrotDy, carrotDx) * 180.0f / M_PI;
 
     // Reverse if driving backwards
     if (!params.forwards) {
@@ -553,19 +556,19 @@ void Actor::moveToPose(float x, float y, float theta, MoveToPoseParams params,
 
     // Apply slew rate limiting
     lateralOutput =
-        slew(lateralOutput, prevLateralOutput, lateralSettings.slew);
+      slew(lateralOutput, prevLateralOutput, lateralSettings.slew);
     angularOutput =
-        slew(angularOutput, prevAngularOutput, angularSettings.slew);
+      slew(angularOutput, prevAngularOutput, angularSettings.slew);
     prevLateralOutput = lateralOutput;
     prevAngularOutput = angularOutput;
 
     // Clamp to speed limits
     lateralOutput =
-        clampValue(lateralOutput, -params.maxSpeed, params.maxSpeed);
+      clampValue(lateralOutput, -params.maxSpeed, params.maxSpeed);
 
     // Handle minimum speed for motion chaining
     if (params.minSpeed != 0 && std::abs(lateralOutput) < params.minSpeed &&
-        distanceToTarget > 1.0f) {
+      distanceToTarget > 1.0f) {
       lateralOutput = params.minSpeed * direction;
     }
 
@@ -606,8 +609,8 @@ void Actor::waitUntil(float dist) {
 }
 
 void Actor::wiggle(float speed_start, float speed_end, float distance_inches,
-                   float wiggle_degrees, float wiggle_period,
-                   float timeout_milliseconds) {
+  float wiggle_degrees, float wiggle_period,
+  float timeout_milliseconds) {
   // Get starting pose
   Eigen::Vector2d startXY = odom.get_xy_inches();
   float startHeading = odom.get_theta_degrees();
@@ -617,11 +620,11 @@ void Actor::wiggle(float speed_start, float speed_end, float distance_inches,
   float direction = (speed_start >= 0) ? 1.0f : -1.0f;
 
   while (traveled < std::abs(distance_inches) &&
-         (pros::millis() - startTime) < timeout_milliseconds) {
+    (pros::millis() - startTime) < timeout_milliseconds) {
     float elapsed = (pros::millis() - startTime) / 1000.0f;
     // Calculate target heading: startHeading + sin wave
     float wiggle =
-        std::sin(2 * M_PI * elapsed / wiggle_period) * wiggle_degrees;
+      std::sin(2 * M_PI * elapsed / wiggle_period) * wiggle_degrees;
     float targetHeading = startHeading + wiggle;
     float currentHeading = odom.get_theta_degrees();
     float headingError = angleError(targetHeading, currentHeading);
@@ -629,7 +632,7 @@ void Actor::wiggle(float speed_start, float speed_end, float distance_inches,
     // Simple P controller for heading
     float turn = 2.0f * headingError;  // 2.0 is a reasonable P gain for heading
     float throttle = speed_start + (speed_end - speed_start) *
-                                       (traveled / std::abs(distance_inches));
+      (traveled / std::abs(distance_inches));
     arcade(throttle, turn);
 
     // Update traveled distance
@@ -638,4 +641,113 @@ void Actor::wiggle(float speed_start, float speed_end, float distance_inches,
     pros::delay(DT_MS);
   }
   stop();
+}
+// ═════════════════════════════════════════════════════════════════════
+//  followPath – pure-pursuit controller → motor percentages
+//
+//  Each loop iteration:
+//    1. Get current pose from odometry.
+//    2. Run pure pursuit (with velocity profiling) to get motor %.
+//    3. Apply slew rate limiting for smooth acceleration.
+//    4. Send to motors via move().
+//    5. Exit when close to the final point, early-exit range
+//       (motion chaining), or timeout.
+// ═════════════════════════════════════════════════════════════════════
+
+void Actor::followPath(const CatmullRomPath& path,
+  const PurePursuitController& pursuit,
+  const FollowPathParams& params,
+  double settle_dist,
+  int timeout) {
+  const int DT_MS = 10;
+
+  if (path.size() == 0) return;
+
+  // Default timeout: rough estimate from path length and speed
+  if (timeout <= 0) {
+    double speed_pct = std::abs(params.maxSpeed);
+    // Rough max in/s: 200 RPM, 3.25" wheels ≈ 34 in/s at 100%
+    double approx_vel = (speed_pct / 100.0) * 34.0;
+    if (approx_vel < 1.0) approx_vel = 1.0;
+    timeout = static_cast<int>(path.totalLength() / approx_vel * 1000.0) + 2000;
+  }
+
+  int startTime = pros::millis();
+  size_t search_start = 0;  // monotonically advancing closest-point window
+
+  const Pose& finalPose = path[path.size() - 1].pose;
+
+  // Previous motor outputs for slew rate limiting
+  double prev_left = 0.0;
+  double prev_right = 0.0;
+
+  while (true) {
+    int elapsed_ms = pros::millis() - startTime;
+    if (elapsed_ms > timeout) break;
+
+    // ── Current robot pose ──
+    Eigen::Vector2d xy = odom.get_xy_inches();
+    Pose current(xy(0), xy(1), odom.get_theta_degrees());
+
+    // ── Pure pursuit update (with velocity profiling) ──
+    PurePursuitOutput cmd = pursuit.calculate(current, path, params, search_start);
+
+    // Advance the search window so we never chase points behind us
+    search_start = cmd.closest_idx;
+
+    // ── Apply slew rate limiting (smooth acceleration) ──
+    double left_pct = cmd.left_pct;
+    double right_pct = cmd.right_pct;
+
+    if (params.maxAccel > 0) {
+      double dl = left_pct - prev_left;
+      double dr = right_pct - prev_right;
+      if (std::abs(dl) > params.maxAccel)
+        left_pct = prev_left + (dl > 0 ? params.maxAccel : -params.maxAccel);
+      if (std::abs(dr) > params.maxAccel)
+        right_pct = prev_right + (dr > 0 ? params.maxAccel : -params.maxAccel);
+    }
+    prev_left = left_pct;
+    prev_right = right_pct;
+
+    // ── Send to motors (percentage, −127 … +127 mapped from %) ──
+    double left_out = left_pct * 127.0 / 100.0;
+    double right_out = right_pct * 127.0 / 100.0;
+    left_motors.move(static_cast<int32_t>(left_out));
+    right_motors.move(static_cast<int32_t>(right_out));
+
+    // ── Distance to final point ──
+    double dx = finalPose.x - current.x;
+    double dy = finalPose.y - current.y;
+    double dist_to_end = std::sqrt(dx * dx + dy * dy);
+
+    // ── Motion chaining exit (earlyExitRange > 0) ──
+    if (params.earlyExitRange > 0 && dist_to_end < params.earlyExitRange) {
+      break;  // don't stop motors – chaining into next motion
+    }
+
+    // ── Standard exit: within settle_dist of the final point ──
+    if (dist_to_end < settle_dist) break;
+
+    pros::delay(DT_MS);
+  }
+
+  // Only brake if not motion chaining
+  if (params.minSpeed == 0.0) {
+    stop();
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════
+//  followPath – legacy overload (preserves old API)
+// ═════════════════════════════════════════════════════════════════════
+
+void Actor::followPath(const CatmullRomPath& path,
+  const PurePursuitController& pursuit,
+  double settle_dist,
+  int timeout) {
+  FollowPathParams params;
+  params.maxSpeed = std::abs(pursuit.getMaxSpeed());
+  params.forwards = pursuit.getForwards();
+  followPath(path, pursuit, params, settle_dist, timeout);
 }

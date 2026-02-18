@@ -8,6 +8,9 @@
 #include "lever.h"
 #include "odom.h"
 #include "user_control.h"
+#include "path.h"
+#include "pure_pursuit.h"
+#include "pursuit_presets.h"
 
 Odom odom;
 pros::Controller master(pros::E_CONTROLLER_MASTER);
@@ -66,6 +69,17 @@ MotionControllerSettings angularSettings = {
 // Create Actor with PID settings
 Actor actor(odom, left_motors, right_motors, lateralSettings, angularSettings);
 
+CatmullRomPath path({
+    {0, 0, 0},
+    {-36, 24, 0},
+    {-24, 48, 90},
+    {36, 24, 180},
+    {36, -15, 180}
+  });
+PurePursuitController pursuit(15, 11.67);  // lookahead & track width only
+
+
+
 void on_center_button() {
   static bool pressed = false;
   pressed = !pressed;
@@ -98,8 +112,10 @@ void disabled() {}
 void competition_initialize() {}
 
 void autonomous() {
-  right_auton(actor, intake, matchLoadLever, wingLever, hoodLever);
-  // cout the odometry position at the end of auton for debugging
+
+  PursuitPreset::applyTight(pursuit);
+  actor.followPath(path, pursuit, PursuitPreset::PRECISE);
+
   Eigen::Vector2d pos = odom.get_xy_inches();
   printf("Final Position - X: %.2f, Y: %.2f\n", pos.x(), pos.y());
 }
