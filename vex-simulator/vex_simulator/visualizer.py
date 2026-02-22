@@ -81,7 +81,7 @@ ARROW_R = (6.5, -1.8)
 # ────────────────────────────────────────────────────────────────────────
 # Default field background image
 # ────────────────────────────────────────────────────────────────────────
-DEFAULT_FIELD_IMG = r"C:\Users\gregk\Downloads\pushback_field.png"
+DEFAULT_FIELD_IMG = r"C:\Users\gregk\OneDrive\Pictures\Screenshots\Skills_field.png"
 
 
 # ════════════════════════════════════════════════════════════════════════
@@ -259,13 +259,30 @@ class Visualizer:
         return self._f2s(fx, fy), self._f2s(fx + dx * dist_in, fy + dy * dist_in)
 
     def _draw_sensor_beams(self) -> None:
-        sensors = [
-            (SEN_FRONT_POS, SEN_FRONT_DIR, self.robot.dist_front_mm, C_BEAM_F),
-            (SEN_RIGHT_POS, SEN_RIGHT_DIR, self.robot.dist_right_mm, C_BEAM_R),
-            (SEN_LEFT_POS, SEN_LEFT_DIR, self.robot.dist_left_mm, C_BEAM_L),
-        ]
-        for pos, direction, dist, col in sensors:
-            start, end = self._beam_endpoints(pos, direction, dist)
+        if not self.robot.cfg.distance_sensors:
+            return
+
+        _dir_to_visual = {
+            "forward": (SEN_FRONT_POS, SEN_FRONT_DIR, C_BEAM_F),
+            "right":   (SEN_RIGHT_POS, SEN_RIGHT_DIR, C_BEAM_R),
+            "left":    (SEN_LEFT_POS,  SEN_LEFT_DIR,  C_BEAM_L),
+            "backward": ((-9.0, 0.0), (-1.0, 0.0), C_BEAM_F),
+        }
+        _dir_to_dist = {
+            "forward":  lambda: self.robot.dist_front_mm,
+            "right":    lambda: self.robot.dist_right_mm,
+            "left":     lambda: self.robot.dist_left_mm,
+            "backward": lambda: self.robot.dist_front_mm,
+        }
+        for mount in self.robot.cfg.distance_sensors:
+            vis = _dir_to_visual.get(mount.direction)
+            get_dist = _dir_to_dist.get(mount.direction)
+            if vis is None or get_dist is None:
+                continue
+            pos, direction, col = vis
+            # Use actual configured offsets for position
+            pos = (mount.offset_forward, -mount.offset_right)
+            start, end = self._beam_endpoints(pos, direction, get_dist())
             pygame.draw.line(self.overlay, col, start, end, BEAM_THICKNESS)
             # hit‑point dot (more opaque)
             pygame.draw.circle(self.overlay, col[:3] + (180,), end, 5)
@@ -329,13 +346,27 @@ class Visualizer:
 
         # ── Distance sensors ──
         y = self._sec(px, y, "DISTANCE SENSORS")
-        y = self._kv_dot(
-            px, y, "Front", f"{self.robot.dist_front_mm:.0f} mm", C_SENSOR_F
-        )
-        y = self._kv_dot(
-            px, y, "Right", f"{self.robot.dist_right_mm:.0f} mm", C_SENSOR_R
-        )
-        y = self._kv_dot(px, y, "Left", f"{self.robot.dist_left_mm:.0f} mm", C_SENSOR_L)
+        if self.robot.cfg.distance_sensors:
+            _dir_colors = {
+                "forward": ("Front", C_SENSOR_F),
+                "right": ("Right", C_SENSOR_R),
+                "left": ("Left", C_SENSOR_L),
+                "backward": ("Back", C_SENSOR_F),
+            }
+            _dir_attrs = {
+                "forward": "dist_front_mm",
+                "right": "dist_right_mm",
+                "left": "dist_left_mm",
+            }
+            for mount in self.robot.cfg.distance_sensors:
+                label, col = _dir_colors.get(
+                    mount.direction, (mount.direction.title(), C_SENSOR_F)
+                )
+                attr = _dir_attrs.get(mount.direction)
+                val = getattr(self.robot, attr, 0.0) if attr else 0.0
+                y = self._kv_dot(px, y, label, f"{val:.0f} mm", col)
+        else:
+            y = self._kv(px, y, "Status", "\u2014 none")
         y += 4
         y = self._divider(px, y)
 

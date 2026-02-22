@@ -269,31 +269,26 @@ class RobotState:
             fdy = dx * cos_h + dy * sin_h
             return self._raycast(ox, oy, fdx, fdy) * 25.4  # → mm
 
-        # Use configured sensor mounts, or fall back to defaults
-        if self.cfg.distance_sensors:
-            for mount in self.cfg.distance_sensors:
-                d_mm = _dist(
-                    mount.offset_forward,
-                    -mount.offset_right,
-                    mount._dx,
-                    mount._dy,
-                )
-                if mount.port in self.distance_sensors:
-                    self.distance_sensors[mount.port].distance_mm = int(d_mm)
-                # Also keep convenience attrs for the first three
-                if mount.direction == "forward":
-                    self.dist_front_mm = d_mm
-                elif mount.direction == "right":
-                    self.dist_right_mm = d_mm
-                elif mount.direction == "left":
-                    self.dist_left_mm = d_mm
-        else:
-            hs = self.cfg.half_robot_in
-            self.dist_front_mm = _dist(hs, 0.0, 1.0, 0.0)
-            self.dist_right_mm = _dist(0.0, -hs, 0.0, -1.0)
-            self.dist_left_mm = _dist(0.0, hs, 0.0, 1.0)
-            for sensor in self.distance_sensors.values():
-                sensor.distance_mm = int(self.dist_front_mm)
+        # Only compute distances for configured sensor mounts
+        if not self.cfg.distance_sensors:
+            return
+
+        for mount in self.cfg.distance_sensors:
+            d_mm = _dist(
+                mount.offset_forward,
+                -mount.offset_right,
+                mount._dx,
+                mount._dy,
+            )
+            if mount.port in self.distance_sensors:
+                self.distance_sensors[mount.port].distance_mm = int(d_mm)
+            # Also keep convenience attrs for the first three
+            if mount.direction == "forward":
+                self.dist_front_mm = d_mm
+            elif mount.direction == "right":
+                self.dist_right_mm = d_mm
+            elif mount.direction == "left":
+                self.dist_left_mm = d_mm
 
     @staticmethod
     def _raycast(ox: float, oy: float, dx: float, dy: float) -> float:

@@ -88,6 +88,17 @@ namespace PursuitPreset {
     .maxCentripetalAccel = 80.0,
   };
 
+  /// Reverse precise – slow and careful backwards.
+  inline constexpr FollowPathParams REVERSE_PRECISE = {
+    .forwards = false,
+    .maxSpeed = 45.0,
+    .minSpeed = 0.0,
+    .earlyExitRange = 0.0,
+    .maxAccel = 3.0,
+    .decelDist = 8.0,
+    .maxCentripetalAccel = 30.0,
+  };
+
   // ═════════════════════════════════════════════════════════════════════
   //  Motion-chaining presets (robot keeps rolling into next motion)
   //

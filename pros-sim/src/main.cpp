@@ -69,15 +69,6 @@ MotionControllerSettings angularSettings = {
 // Create Actor with PID settings
 Actor actor(odom, left_motors, right_motors, lateralSettings, angularSettings);
 
-CatmullRomPath path({
-    {0, 0, 0},
-    {-36, 24, 0},
-    {-24, 48, 90},
-    {36, 24, 180},
-    {36, -15, 180}
-  });
-PurePursuitController pursuit(15, 11.67);  // lookahead & track width only
-
 
 
 void on_center_button() {
@@ -112,9 +103,8 @@ void disabled() {}
 void competition_initialize() {}
 
 void autonomous() {
+  skills_auton(actor, intake, matchLoadLever, wingLever, hoodLever);
 
-  PursuitPreset::applyTight(pursuit);
-  actor.followPath(path, pursuit, PursuitPreset::PRECISE);
 
   Eigen::Vector2d pos = odom.get_xy_inches();
   printf("Final Position - X: %.2f, Y: %.2f\n", pos.x(), pos.y());

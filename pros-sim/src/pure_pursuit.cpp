@@ -217,10 +217,11 @@ PurePursuitOutput PurePursuitController::calculate(
   }
   out.closest_idx = closest;
 
-  // ── Remaining arc-length ──
-  double total_len = path.totalLength();
+  // ── Remaining arc-length (use original length so decel ramp
+  //    is unaffected by any synthetic extension) ──
+  double orig_len = path.originalLength();
   double closest_arc = path[closest].arc_length;
-  out.remaining_dist = total_len - closest_arc;
+  out.remaining_dist = std::max(orig_len - closest_arc, 0.0);
 
   // ── 2. Adaptive lookahead ──
   double path_kappa = path[closest].curvature;
@@ -263,9 +264,11 @@ PurePursuitOutput PurePursuitController::calculate(
   double e_x = cos_t * dx - sin_t * dy;
   double e_y = sin_t * dx + cos_t * dy;
 
-  // If driving in reverse, flip the local frame
+  // If driving in reverse, flip only the longitudinal component so the
+  // algorithm "looks out the back."  The lateral component (e_x) must
+  // keep its original sign so the curvature steers the correct way when
+  // combined with the negated speed in the differential-drive formula.
   if (!forwards) {
-    e_x = -e_x;
     e_y = -e_y;
   }
 

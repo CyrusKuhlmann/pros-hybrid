@@ -663,6 +663,12 @@ void Actor::followPath(const CatmullRomPath& path,
 
   if (path.size() == 0) return;
 
+  // ── Extend the path past its endpoint so the pure-pursuit
+  //    controller always has valid lookahead points near the end.
+  //    The exit condition still uses the original final pose. ──
+  CatmullRomPath extPath = path;             // working copy
+  extPath.extend(pursuit.getLookahead());     // extend by lookahead dist
+
   // Default timeout: rough estimate from path length and speed
   if (timeout <= 0) {
     double speed_pct = std::abs(params.maxSpeed);
@@ -690,7 +696,7 @@ void Actor::followPath(const CatmullRomPath& path,
     Pose current(xy(0), xy(1), odom.get_theta_degrees());
 
     // ── Pure pursuit update (with velocity profiling) ──
-    PurePursuitOutput cmd = pursuit.calculate(current, path, params, search_start);
+    PurePursuitOutput cmd = pursuit.calculate(current, extPath, params, search_start);
 
     // Advance the search window so we never chase points behind us
     search_start = cmd.closest_idx;

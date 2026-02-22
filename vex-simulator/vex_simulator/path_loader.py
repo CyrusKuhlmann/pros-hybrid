@@ -3,7 +3,8 @@
 The C++ code defines paths using CatmullRomPath with waypoints relative to the
 robot's starting position (0, 0).  This module:
 
-1. Parses ``main.cpp`` to extract CatmullRomPath waypoint definitions.
+1. Recursively scans all ``.cpp`` and ``.h`` files under the ``pros-sim/src``
+   and ``pros-sim/include`` directories to extract CatmullRomPath definitions.
 2. Implements the *same* Hermite-spline maths as ``path.cpp`` so the rendered
    curve matches exactly what the C++ sim follows.
 3. Transforms the spline samples from robot-start-relative coordinates to
@@ -205,7 +206,7 @@ _WP_RE = re.compile(
 
 
 def parse_paths_from_cpp(source_path: str | Path) -> list[SplinePath]:
-    """Parse ``CatmullRomPath`` definitions from a C++ source file.
+    """Parse ``CatmullRomPath`` definitions from a single C++ source file.
 
     Returns a list of `SplinePath` objects with waypoints populated and
     spline samples computed.  Theta values in the C++ source are in
@@ -235,12 +236,59 @@ def parse_paths_from_cpp(source_path: str | Path) -> list[SplinePath]:
 
     if paths:
         print(f"[path_loader] Loaded {len(paths)} path(s) from {source_path.name}")
-    else:
-        print(
-            f"[path_loader] No CatmullRomPath definitions found in {source_path.name}"
-        )
 
     return paths
+
+
+def parse_paths_from_directory(root: str | Path) -> list[SplinePath]:
+    """Recursively scan a directory for CatmullRomPath definitions in all C++ files.
+
+    Searches every ``.cpp``, ``.h``, and ``.hpp`` file under *root* (including
+    subdirectories) and returns all discovered paths.
+
+    Parameters
+    ----------
+    root:
+        Top-level project directory (e.g. ``pros-sim/``).  Both ``src/`` and
+        ``include/`` subtrees are scanned.
+    """
+    root = Path(root)
+    if not root.exists():
+        print(f"[path_loader] Project directory not found: {root}")
+        return []
+
+    all_paths: list[SplinePath] = []
+    seen_names: set[str] = set()
+    cpp_extensions = {".cpp", ".h", ".hpp", ".cc", ".cxx", ".hxx"}
+
+    source_files = sorted(
+        f for f in root.rglob("*") if f.suffix in cpp_extensions and f.is_file()
+    )
+
+    for src_file in source_files:
+        file_paths = parse_paths_from_cpp(src_file)
+        for sp in file_paths:
+            if sp.name not in seen_names:
+                seen_names.add(sp.name)
+                all_paths.append(sp)
+            else:
+                print(
+                    f"[path_loader] Skipping duplicate path '{sp.name}' in "
+                    f"{src_file.name} (already loaded)"
+                )
+
+    if all_paths:
+        print(
+            f"[path_loader] Total: {len(all_paths)} path(s) from "
+            f"{len(source_files)} file(s) scanned under {root.name}/"
+        )
+    else:
+        print(
+            f"[path_loader] No CatmullRomPath definitions found in any file "
+            f"under {root.name}/"
+        )
+
+    return all_paths
 
 
 # ────────────────────────────────────────────────────────────────────────

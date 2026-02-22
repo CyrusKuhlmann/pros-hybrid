@@ -3,6 +3,36 @@
 #include "main.h"
 #include "actor.h"
 #include "lever.h"
+#include "pursuit_presets.h"
+
+Odom odom;
+
+CatmullRomPath path1({
+    {9, 27, -225},
+    {33, 6.5, -276},
+    {38, 16, 0},
+    {38, 22, 0},
+  });
+
+CatmullRomPath path2({
+    {38, -2, 0},
+    {51, 12, 0},
+    {51, 70, 0},
+    {43, 80, -90},
+    {38, 72, 180},
+    {38, 68, 180}
+  });
+
+CatmullRomPath path3({
+    {38, 68, 0},
+    {38, 72, 0},
+    {30, 84, -55},
+    {-9, 82, -95},
+    {-42, 80, -80},
+    {-56, 95, 0},
+  });
+
+PurePursuitController pursuit(15, 11.67);  // lookahead & track width only
 
 void right_auton(Actor& actor, Intake& intake, Lever& matchLoadLever, Lever& wingLever, Lever& hoodLever) {
   // right auton (reverse of left)
@@ -68,9 +98,74 @@ void left_auton(Actor& actor, Intake& intake, Lever& matchLoadLever, Lever& wing
 }
 
 void skills_auton(Actor& actor, Intake& intake, Lever& matchLoadLever, Lever& wingLever, Lever& hoodLever) {
+  actor.moveToPoint(0, 11.5, { .forwards = true, .maxSpeed = 50, .earlyExitRange = 0 }, 4000);
+  actor.turnToHeading(45, { .maxSpeed = 50, .earlyExitRange = 0 }, 2000);
   intake.scoreHighGoal();
+  actor.wiggle(25, 55, 22, 7.5, 0.5, 3000);
+  actor.moveToPoint(16.5, 19.75, { .forwards = false, .maxSpeed = 60, .earlyExitRange = 0 }, 2000);
+  actor.turnToHeading(-43, { .maxSpeed = 50, .earlyExitRange = 0 }, 2000);
+  actor.moveToPoint(4.25, 32.5, { .forwards = true, .maxSpeed = 50, .earlyExitRange = 1.5 }, 2000);
+  intake.scoreLowGoal();
+  actor.driveStraight(5, { .forwards = true, .maxSpeed = 15, .earlyExitRange = 0 }, 2000);
   pros::delay(3000);
   intake.stop();
+  actor.driveStraight(-7, { .forwards = false, .maxSpeed = 35, .minSpeed = 15, .earlyExitRange = 3 }, 2000);
+
+  PursuitPreset::applyTight(pursuit);
+  actor.followPath(path1, pursuit, PursuitPreset::REVERSE_PRECISE);
+
+  // odom.manual_set_xy(38, 18);
+
+  matchLoadLever.extend();
+  actor.moveToPoint(38, -0.5, { .forwards = true, .maxSpeed = 40, .earlyExitRange = 0 }, 6000);
+  actor.wiggle(20, 15, 7.5, 7.5, 0.5, 1500);
+
+  wingLever.extend();
+
+  actor.followPath(path2, pursuit, PursuitPreset::REVERSE_PRECISE);
+
+  // odom.manual_set_xy(38, 68);
+
+  hoodLever.extend();
+  intake.scoreHighGoal();
+  pros::delay(3000);
+
+  hoodLever.retract();
+  matchLoadLever.extend();
+
+  actor.moveToPoint(38, 93, { .forwards = true, .maxSpeed = 40, .earlyExitRange = 0 }, 2000);
+  actor.wiggle(20, 15, 7.5, 7.5, 0.5, 1500);
+
+  actor.moveToPoint(38, 68, { .forwards = false, .maxSpeed = 40, .earlyExitRange = 0 }, 2000);
+
+  hoodLever.extend();
+  intake.scoreHighGoal();
+  pros::delay(3000);
+
+  matchLoadLever.retract();
+
+  actor.followPath(path3, pursuit, PursuitPreset::PRECISE);
+
+  actor.moveToPoint(-56, 68, { .forwards = false, .maxSpeed = 40, .earlyExitRange = 0 }, 2000);
+
+  // odom.manual_set_xy(-56, 68);
+
+  matchLoadLever.extend();
+  hoodLever.retract();
+  intake.scoreHighGoal();
+
+  actor.moveToPoint(-56, 90, { .forwards = true, .maxSpeed = 40, .earlyExitRange = 0 }, 2000);
+  actor.wiggle(20, 15, 7.5, 7.5, 0.5, 1500);
+
+  actor.moveToPoint(-56, 68, { .forwards = false, .maxSpeed = 40, .earlyExitRange = 0 }, 2000);
+
+  hoodLever.extend();
+  intake.scoreHighGoal();
+  pros::delay(3000);
+
+
+
+
 }
 
 void test_auton(Actor& actor, Intake& intake, Lever& matchLoadLever, Lever& wingLever, Lever& hoodLever) {

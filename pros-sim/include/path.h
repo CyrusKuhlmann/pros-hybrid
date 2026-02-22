@@ -106,11 +106,22 @@ public:
   /// Compute heading from one PathPoint to the next (tangent direction).
   static double headingBetween(const PathPoint& a, const PathPoint& b);
 
+  /// Extend the path by `distance` inches beyond its current endpoint,
+  /// extrapolating with the curvature at the last point.  The original
+  /// arc-length is remembered so that velocity profiling uses the real
+  /// path length (see originalLength()).
+  void extend(double distance);
+
+  /// Arc-length of the path before any extend() calls.
+  /// If extend() was never called this equals totalLength().
+  double originalLength() const;
+
 private:
   std::vector<Pose>      m_waypoints;
   std::vector<PathPoint> m_points;
   double                 m_alpha;
   int                    m_samples_per_segment;
+  double                 m_original_length = -1.0;  // set after buildSpline / extend
 
   // Spline maths
   void buildSpline();

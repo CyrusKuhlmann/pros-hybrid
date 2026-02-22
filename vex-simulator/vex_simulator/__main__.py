@@ -8,12 +8,12 @@ import threading
 from pathlib import Path
 
 from vex_simulator.config import load_config
-from vex_simulator.path_loader import parse_paths_from_cpp
+from vex_simulator.path_loader import parse_paths_from_directory
 from vex_simulator.server import SimulatorServer
 from vex_simulator.visualizer import Visualizer
 
-# Relative path from this package's directory to the C++ main.cpp
-_PROS_SIM_MAIN = Path(__file__).resolve().parents[2] / "pros-sim" / "src" / "main.cpp"
+# Root of the C++ project – all .cpp/.h files under here are scanned for paths
+_PROS_SIM_ROOT = Path(__file__).resolve().parents[2] / "pros-sim"
 
 
 def run() -> None:
@@ -25,8 +25,8 @@ def run() -> None:
         f'{config.robot_size_in}" chassis'
     )
 
-    # Load spline paths from the C++ source
-    paths = parse_paths_from_cpp(_PROS_SIM_MAIN)
+    # Load spline paths from all C++ sources in the project
+    paths = parse_paths_from_directory(_PROS_SIM_ROOT)
 
     server = SimulatorServer(config=config)
 

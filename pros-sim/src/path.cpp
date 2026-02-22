@@ -147,6 +147,10 @@ double CatmullRomPath::totalLength() const {
   return m_points.empty() ? 0.0 : m_points.back().arc_length;
 }
 
+double CatmullRomPath::originalLength() const {
+  return (m_original_length >= 0.0) ? m_original_length : totalLength();
+}
+
 size_t CatmullRomPath::size() const { return m_points.size(); }
 
 const PathPoint& CatmullRomPath::operator[](size_t i) const {
@@ -227,4 +231,58 @@ double CatmullRomPath::headingBetween(const PathPoint& a,
   double dx = b.pose.x - a.pose.x;
   double dy = b.pose.y - a.pose.y;
   return Pose::normaliseDeg(std::atan2(dx, dy) * 180.0 / M_PI);
+}
+
+// ═════════════════════════════════════════════════════════════════════
+//  extend – append synthetic samples beyond the endpoint
+//
+//  Extrapolates with constant curvature (circular arc, or straight
+//  line if curvature ≈ 0).  Useful for giving the pure-pursuit
+//  controller valid lookahead points near the end of the path so it
+//  doesn't lock onto the final point and produce jerky output.
+//
+//  The original arc-length is saved the first time extend() is
+//  called so that velocity profiling (deceleration ramp) still
+//  references the real endpoint.
+// ═════════════════════════════════════════════════════════════════════
+
+void CatmullRomPath::extend(double distance) {
+  if (m_points.size() < 2 || distance <= 0.0) return;
+
+  // Remember the real path length before any extension
+  if (m_original_length < 0.0)
+    m_original_length = totalLength();
+
+  const PathPoint& last = m_points.back();
+  double kappa = last.curvature;          // 1/inches, signed
+  double theta = last.pose.theta * M_PI / 180.0;  // CW-from-+y, radians
+  double x = last.pose.x;
+  double y = last.pose.y;
+  double arc = last.arc_length;
+
+  // Step size: match the average spacing of the existing spline
+  double avg_spacing = totalLength() / static_cast<double>(m_points.size() - 1);
+  double ds = std::max(avg_spacing, 0.05);  // at least 0.05"
+
+  double remaining = distance;
+  while (remaining > 1e-6) {
+    double step = std::min(ds, remaining);
+
+    // Advance heading by κ·ds  (κ > 0 → CW → theta increases)
+    theta += kappa * step;
+    // Advance position   (forward = (sin θ, cos θ) in CW-from-+y)
+    x += std::sin(theta) * step;
+    y += std::cos(theta) * step;
+    arc += step;
+    remaining -= step;
+
+    PathPoint pp;
+    pp.pose.x = x;
+    pp.pose.y = y;
+    pp.pose.theta = Pose::normaliseDeg(theta * 180.0 / M_PI);
+    pp.curvature = kappa;       // constant curvature extension
+    pp.d_curvature = 0.0;
+    pp.arc_length = arc;
+    m_points.push_back(pp);
+  }
 }
