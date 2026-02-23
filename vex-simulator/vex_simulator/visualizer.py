@@ -81,7 +81,7 @@ ARROW_R = (6.5, -1.8)
 # ────────────────────────────────────────────────────────────────────────
 # Default field background image
 # ────────────────────────────────────────────────────────────────────────
-DEFAULT_FIELD_IMG = r"C:\Users\gregk\OneDrive\Pictures\Screenshots\Skills_field.png"
+DEFAULT_FIELD_IMG = Path(__file__).resolve().parent.parent / "assets" / "Skills_field.png"
 
 
 # ════════════════════════════════════════════════════════════════════════
