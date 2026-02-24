@@ -1,4 +1,10 @@
-"""Main entry point for VEX simulator."""
+"""Main entry point for VEX simulator.
+
+Usage::
+
+    python -m vex_simulator           # run the simulator
+    python -m vex_simulator editor    # open the path editor
+"""
 
 from __future__ import annotations
 
@@ -14,6 +20,28 @@ from vex_simulator.visualizer import Visualizer
 
 # Root of the C++ project – all .cpp/.h files under here are scanned for paths
 _PROS_SIM_ROOT = Path(__file__).resolve().parents[2] / "pros-sim"
+
+# Output directory for saved paths (project root)
+_PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+
+def run_editor() -> None:
+    """Launch the interactive path editor."""
+    from vex_simulator.path_editor import PathEditor
+
+    config = load_config()
+    print(
+        f"[editor] Start pose: ({config.start_x_in}, {config.start_y_in}), "
+        f"heading {config.start_heading_deg}°"
+    )
+
+    editor = PathEditor(
+        start_x=config.start_x_in,
+        start_y=config.start_y_in,
+        start_heading_deg=config.start_heading_deg,
+        output_dir=_PROJECT_ROOT,
+    )
+    editor.run()
 
 
 def run() -> None:
@@ -54,5 +82,13 @@ def run() -> None:
         sys.exit(0)
 
 
+def main() -> None:
+    """Dispatch to simulator or editor based on CLI arguments."""
+    if len(sys.argv) > 1 and sys.argv[1] == "editor":
+        run_editor()
+    else:
+        run()
+
+
 if __name__ == "__main__":
-    run()
+    main()
