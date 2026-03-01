@@ -204,6 +204,15 @@ _WP_RE = re.compile(
     r"\{\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*(?:,\s*(-?[\d.]+)\s*)?\}",
 )
 
+# Regex to strip C++ comments (// ... and /* ... */) so that commented-out
+# path definitions are not loaded.
+_COMMENT_RE = re.compile(r"//[^\n]*|/\*[\s\S]*?\*/")
+
+
+def _strip_cpp_comments(source: str) -> str:
+    """Remove C++ line and block comments from *source*."""
+    return _COMMENT_RE.sub("", source)
+
 
 def parse_paths_from_cpp(source_path: str | Path) -> list[SplinePath]:
     """Parse ``CatmullRomPath`` definitions from a single C++ source file.
@@ -211,13 +220,16 @@ def parse_paths_from_cpp(source_path: str | Path) -> list[SplinePath]:
     Returns a list of `SplinePath` objects with waypoints populated and
     spline samples computed.  Theta values in the C++ source are in
     degrees (CW from +y), matching the new convention.
+
+    Definitions that are commented out (``//`` or ``/* */``) are ignored.
     """
     source_path = Path(source_path)
     if not source_path.exists():
         print(f"[path_loader] C++ source not found: {source_path}")
         return []
 
-    text = source_path.read_text(encoding="utf-8", errors="replace")
+    raw = source_path.read_text(encoding="utf-8", errors="replace")
+    text = _strip_cpp_comments(raw)
     paths: list[SplinePath] = []
 
     for m in _PATH_RE.finditer(text):
