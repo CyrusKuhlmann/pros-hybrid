@@ -58,8 +58,18 @@ class SimulatorServer:
 
                 try:
                     data = json.loads(line.decode().strip())
-                    cmd = CommandMessage.from_dict(data)
-                    self.robot.handle_command(cmd)
+                    if data.get("type") == MessageType.PARTICLE_LOCATIONS.value:
+                        locs = data.get("locations", [])
+                        self.robot.particles = [
+                            (float(p["x"]), float(p["y"])) for p in locs
+                        ]
+                        est = data.get("average")
+                        self.robot.particle_estimate = (
+                            (float(est["x"]), float(est["y"])) if est else None
+                        )
+                    else:
+                        cmd = CommandMessage.from_dict(data)
+                        self.robot.handle_command(cmd)
                 except json.JSONDecodeError as e:
                     print(f"Invalid JSON from client: {e}")
                 except (KeyError, ValueError) as e:

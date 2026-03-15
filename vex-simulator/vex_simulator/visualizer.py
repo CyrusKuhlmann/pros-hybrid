@@ -62,6 +62,11 @@ C_PATH_LINE = (255, 160, 40, 160)  # warm orange spline curve
 C_PATH_WAYPOINT = (255, 80, 80)  # red waypoint dots
 C_PATH_WP_RING = (255, 200, 200, 120)  # light ring around waypoints
 
+# Particle filter colours
+C_PARTICLE_ESTIMATE = (255, 40, 40, 220)  # red position estimate
+C_PARTICLE = (0, 255, 180, 160)  # cyan-green semi-transparent dots
+C_PARTICLE_OUTLINE = (0, 200, 140, 200)
+
 # ────────────────────────────────────────────────────────────────────────
 # Robot geometry (robot‑local frame, inches, origin=centre, +x=forward)
 # ────────────────────────────────────────────────────────────────────────
@@ -81,7 +86,9 @@ ARROW_R = (6.5, -1.8)
 # ────────────────────────────────────────────────────────────────────────
 # Default field background image
 # ────────────────────────────────────────────────────────────────────────
-DEFAULT_FIELD_IMG = Path(__file__).resolve().parent.parent / "assets" / "Skills_field.png"
+DEFAULT_FIELD_IMG = (
+    Path(__file__).resolve().parent.parent / "assets" / "Skills_field.png"
+)
 
 
 # ════════════════════════════════════════════════════════════════════════
@@ -110,6 +117,8 @@ class Visualizer:
 
         # Transparent overlay for sensor beams + trail
         self.overlay = pygame.Surface((FIELD_PX, FIELD_PX), pygame.SRCALPHA)
+        # Separate overlay for particles (drawn above the robot)
+        self.particle_overlay = pygame.Surface((FIELD_PX, FIELD_PX), pygame.SRCALPHA)
 
         # Field background
         self.field_bg = self._load_field(field_image)
@@ -264,14 +273,14 @@ class Visualizer:
 
         _dir_to_visual = {
             "forward": (SEN_FRONT_POS, SEN_FRONT_DIR, C_BEAM_F),
-            "right":   (SEN_RIGHT_POS, SEN_RIGHT_DIR, C_BEAM_R),
-            "left":    (SEN_LEFT_POS,  SEN_LEFT_DIR,  C_BEAM_L),
+            "right": (SEN_RIGHT_POS, SEN_RIGHT_DIR, C_BEAM_R),
+            "left": (SEN_LEFT_POS, SEN_LEFT_DIR, C_BEAM_L),
             "backward": ((-9.0, 0.0), (-1.0, 0.0), C_BEAM_F),
         }
         _dir_to_dist = {
-            "forward":  lambda: self.robot.dist_front_mm,
-            "right":    lambda: self.robot.dist_right_mm,
-            "left":     lambda: self.robot.dist_left_mm,
+            "forward": lambda: self.robot.dist_front_mm,
+            "right": lambda: self.robot.dist_right_mm,
+            "left": lambda: self.robot.dist_left_mm,
             "backward": lambda: self.robot.dist_front_mm,
         }
         for mount in self.robot.cfg.distance_sensors:
@@ -286,6 +295,28 @@ class Visualizer:
             pygame.draw.line(self.overlay, col, start, end, BEAM_THICKNESS)
             # hit‑point dot (more opaque)
             pygame.draw.circle(self.overlay, col[:3] + (180,), end, 5)
+
+    # ── particle filter ──────────────────────────────────────────────
+    def _draw_particles(self) -> None:
+        """Draw particle filter particles onto a separate top-layer overlay."""
+        particles = self.robot.particles
+        if not particles:
+            return
+        self.particle_overlay.fill((0, 0, 0, 0))
+        for px, py in particles:
+            # Particle coords: (0,0)=field centre, +x=right, +y=north
+            # Field coords: (0,0)=bottom-left, range 0..144
+            sx, sy = self._f2s(px + 72.0, py + 72.0)
+            pygame.draw.circle(self.particle_overlay, C_PARTICLE, (sx, sy), 3)
+            pygame.draw.circle(
+                self.particle_overlay, C_PARTICLE_OUTLINE, (sx, sy), 3, 1
+            )
+        # Draw position estimate on top as a larger red dot
+        est = self.robot.particle_estimate
+        if est:
+            sx, sy = self._f2s(est[0] + 72.0, est[1] + 72.0)
+            pygame.draw.circle(self.particle_overlay, C_PARTICLE_ESTIMATE, (sx, sy), 5)
+        self.screen.blit(self.particle_overlay, (0, 0))
 
     # ── robot body ───────────────────────────────────────────────────────
     def _draw_robot(self) -> None:
@@ -458,6 +489,7 @@ class Visualizer:
             self._draw_sensor_beams()
             self.screen.blit(self.overlay, (0, 0))
             self._draw_robot()
+            self._draw_particles()
             self._draw_panel()
 
             pygame.display.flip()

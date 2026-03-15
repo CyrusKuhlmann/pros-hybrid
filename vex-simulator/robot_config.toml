@@ -45,17 +45,17 @@ imu_port = 16                   # Port for the inertial sensor (omit to skip)
 # offset_right   = 0.0
 # direction      = "forward"
 
-# [[sensors.distance]]
-# port           = 8
-# offset_forward = 0.0
-# offset_right   = 9.0
-# direction      = "right"
+[[sensors.distance]]
+port           = 6
+offset_forward = 0.0
+offset_right   = 7.0
+direction      = "right"
 
-# [[sensors.distance]]
-# port           = 9
-# offset_forward = 0.0
-# offset_right   = -9.0
-# direction      = "left"
+[[sensors.distance]]
+port           = 5
+offset_forward = 0.0
+offset_right   = -7.0
+direction      = "left"
 
 # Rotation sensors — dead wheels (unpowered tracking wheels).
 # port              = sensor port number (negative = reversed value)

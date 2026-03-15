@@ -42,6 +42,10 @@ class RobotState:
         # Rotation sensor ports listed as negative are reversed (value negated)
         self._reversed_rotation_ports: set[int] = set()
 
+        # Pre-create distance sensors from config mounts
+        for mount in self.cfg.distance_sensors:
+            self.distance_sensors[mount.port] = DistanceSensor(mount.port)
+
         # Pre-create rotation sensors from config dead-wheel mounts
         for mount in self.cfg.rotation_sensors:
             abs_port = abs(mount.port)
@@ -65,6 +69,10 @@ class RobotState:
         self.dist_front_mm: float = 2000.0
         self.dist_right_mm: float = 2000.0
         self.dist_left_mm: float = 2000.0
+
+        # Particle filter visualisation data (list of (x, y) in inches)
+        self.particles: list[tuple[float, float]] = []
+        self.particle_estimate: tuple[float, float] | None = None
 
     def get_or_create_motor(self, port: int) -> Motor:
         """Get motor or create if doesn't exist."""

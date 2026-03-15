@@ -20,6 +20,9 @@ class MessageType(str, Enum):
     # State update (simulator → client, periodic)
     STATE_UPDATE = "state_update"
 
+    # Visualization data (client → simulator)
+    PARTICLE_LOCATIONS = "particle_locations"
+
     # Lifecycle
     HANDSHAKE = "handshake"
     DISCONNECT = "disconnect"

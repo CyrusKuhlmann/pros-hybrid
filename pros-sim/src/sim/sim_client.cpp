@@ -447,6 +447,19 @@ namespace sim {
       json_cmd_int("rotation_set_position", port, "position", position_cdeg));
   }
 
+  void SimClient::send_particle_locations(const std::vector<std::pair<double, double>>& locations, const std::pair<double, double>& average) {
+    std::string cmd = "{\"type\":\"particle_locations\",\"locations\":[";
+    for (size_t i = 0; i < locations.size(); ++i) {
+      const auto& [x, y] = locations[i];
+      cmd += "{\"x\":" + std::to_string(x) + ",\"y\":" + std::to_string(y) + "}";
+      if (i < locations.size() - 1) {
+        cmd += ",";
+      }
+    }
+    cmd += "],\"average\":{\"x\":" + std::to_string(average.first) + ",\"y\":" + std::to_string(average.second) + "}}\n";
+    send_raw(cmd);
+  }
+
   // ── State getters ────────────────────────────────────────────────────────────
 
   MotorState SimClient::get_motor_state(int port) {

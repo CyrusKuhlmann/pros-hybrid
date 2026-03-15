@@ -11,8 +11,10 @@
 #include "path.h"
 #include "pure_pursuit.h"
 #include "pursuit_presets.h"
+#include "pf_localization.h"
 
 Odom odom;
+PFLocalization pf_loc(odom);
 pros::Controller master(pros::E_CONTROLLER_MASTER);
 pros::MotorGroup left_motors({ -1, -2, -4 });
 pros::MotorGroup right_motors({ 11, 12, 13 });
@@ -96,6 +98,10 @@ void initialize() {
   matchLoadLever.retract();
   pros::Task odom_task(std::bind(&Odom::odom_task_fn, &odom));
   pros::delay(1000);
+  // Initialize and start particle filter on its own task
+  // TODO: Set to your robot's actual starting position on the field
+  pf_loc.initialize(9.0f, -45.0f);
+  pros::Task pf_task(std::bind(&PFLocalization::task_fn, &pf_loc));
 }
 
 void disabled() {}

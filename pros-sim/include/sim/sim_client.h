@@ -113,6 +113,7 @@ namespace sim {
     void send_imu_reset(int port);
     void send_rotation_reset(int port);
     void send_rotation_set_position(int port, int position_cdeg);
+    void send_particle_locations(const std::vector<std::pair<double, double>>& locations, const std::pair<double, double>& average);
 
     // ── State getters (from cached state updates) ──────────────────────────
 
