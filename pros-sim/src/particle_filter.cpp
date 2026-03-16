@@ -15,7 +15,6 @@ const float BODY_WIDTH = 18.0f; // inches – distance between left and right se
 
 ParticleFilter::ParticleFilter(int num_particles) : N(num_particles) {
   particles.resize(N);
-  motion_noise = std::normal_distribution<float>(0.0f, sigma_motion);
 }
 
 
@@ -93,8 +92,8 @@ void ParticleFilter::update_particle(Particle& particle, float left_dist_inches,
   Eigen::Vector2f right_sensor_offset_global = rot * right_sensor_offset;
   Eigen::Vector2f left_sensor_offset_global = rot * left_sensor_offset;
 
-  float predicted_right = raycast(particle.state + right_sensor_offset_global, right_angle);
-  float predicted_left = raycast(particle.state + left_sensor_offset_global, left_angle);
+  float predicted_right = std::max(raycast(particle.state + right_sensor_offset_global, right_angle), BODY_WIDTH / 2 - std::abs(right_sensor_offset.x()));
+  float predicted_left = std::max(raycast(particle.state + left_sensor_offset_global, left_angle), BODY_WIDTH / 2 - std::abs(left_sensor_offset.x()));
 
   if (predicted_right < predicted_left) {
     particle.weight = compute_likelihood(predicted_right, right_dist_inches);
@@ -106,9 +105,18 @@ void ParticleFilter::update_particle(Particle& particle, float left_dist_inches,
 }
 
 void ParticleFilter::update_motion(float delta_x, float delta_y) {
+  float displacement = std::sqrt(delta_x * delta_x + delta_y * delta_y);
+  float noise_sigma = sigma_motion * displacement;
+
   for (auto& particle : particles) {
-    particle.state.x() += delta_x + motion_noise(generator);
-    particle.state.y() += delta_y + motion_noise(generator);
+    float nx = 0.0f, ny = 0.0f;
+    if (noise_sigma > 0.0f) {
+      std::normal_distribution<float> noise(0.0f, noise_sigma);
+      nx = noise(generator);
+      ny = noise(generator);
+    }
+    particle.state.x() += delta_x + nx;
+    particle.state.y() += delta_y + ny;
 
     particle.state.x() = std::clamp(particle.state.x(), -FIELD_WIDTH / 2, FIELD_WIDTH / 2);
     particle.state.y() = std::clamp(particle.state.y(), -FIELD_HEIGHT / 2, FIELD_HEIGHT / 2);
@@ -120,6 +128,7 @@ void ParticleFilter::update_motion(float delta_x, float delta_y) {
 // ---------------------------------------------------------------------------
 
 void ParticleFilter::resample() {
+  printf("Resampling particles...\n");
   double sum_updated = 0.0;
   double sum_not_updated = 0.0;
   for (const auto& particle : particles) {
@@ -132,9 +141,11 @@ void ParticleFilter::resample() {
   }
   // Normalize weights so total sums to 1
   if (sum_updated > 0.0) {
+    double sum = 0.0;
     for (auto& particle : particles) {
       if (particle.is_sensor_updated) {
         particle.weight *= (1.0 - sum_not_updated) / sum_updated;
+        sum += particle.weight;
       }
     }
   }
@@ -153,9 +164,11 @@ void ParticleFilter::resample() {
       c += particles[i].weight;
     }
     new_particles[m] = particles[i];
+    new_particles[m].weight = 1.0f / N;
     new_particles[m].is_sensor_updated = false;
   }
   particles = std::move(new_particles);
+
 }
 
 
@@ -182,7 +195,6 @@ float ParticleFilter::raycast(const Eigen::Vector2f& position,
   float cos_a = std::cos(angle_rad);
   float sin_a = std::sin(angle_rad);
   float t = std::numeric_limits<float>::max();
-  float t_min = BODY_WIDTH / 2 - right_sensor_offset.x();
 
   // Check intersection with vertical walls (x = -FIELD_WIDTH / 2 and x = FIELD_WIDTH / 2)
   if (cos_a != 0) {
@@ -200,7 +212,7 @@ float ParticleFilter::raycast(const Eigen::Vector2f& position,
     if (t4 > 0) t = std::min(t, t4);
   }
 
-  return std::max(t, t_min);
+  return t;
 }
 
 void ParticleFilter::draw_particles() const {

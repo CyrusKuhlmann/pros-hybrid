@@ -32,11 +32,15 @@ void PFLocalization::update() {
   pf.update_motion(static_cast<float>(delta(0)),
     static_cast<float>(delta(1)));
 
-  // Only run sensor update + resample when both readings are trustworthy
-  if (left_distance.is_valid_reading() && right_distance.is_valid_reading()) {
-    float left_inches = static_cast<float>(left_distance.get_distance_inches());
-    float right_inches = static_cast<float>(right_distance.get_distance_inches());
-    float heading_rad = static_cast<float>(odom.get_theta_degrees() * M_PI / 180.0);
+
+  float left_inches = static_cast<float>(left_distance.get_distance_inches());
+  float right_inches = static_cast<float>(right_distance.get_distance_inches());
+  float heading_rad = static_cast<float>(odom.get_theta_degrees() * M_PI / 180.0);
+  if (left_inches < right_inches && left_distance.is_valid_reading()) {
+    pf.update_sensor(left_inches, right_inches, heading_rad);
+    pf.resample();
+  }
+  else if (right_inches < left_inches && right_distance.is_valid_reading()) {
     pf.update_sensor(left_inches, right_inches, heading_rad);
     pf.resample();
   }

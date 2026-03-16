@@ -20,8 +20,8 @@ public:
   Eigen::Vector2f left_sensor_offset = Eigen::Vector2f(-7.0f, 0.0f);  // inches from center to left sensor
 
   // Noise standard deviations
-  float sigma_motion = 0.5f;   // inches – motion noise per axis
-  float sigma_sensor = 2.0f;   // inches – sensor measurement noise
+  float sigma_motion = 0.35f;   // inches – motion noise per axis
+  float sigma_sensor = 1.0f;   // inches – sensor measurement noise
 
   // Field dimensions (VEX field: 144 in × 144 in)
   static constexpr float FIELD_WIDTH = 144.0f;
@@ -60,7 +60,6 @@ private:
   std::vector<Particle> particles;
 
   std::default_random_engine generator;
-  std::normal_distribution<float> motion_noise;
 
   float compute_likelihood(float predicted, float actual);
 
