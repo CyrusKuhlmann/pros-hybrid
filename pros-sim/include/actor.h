@@ -2,7 +2,7 @@
 
 #include "Eigen/Dense"
 #include "api.h"
-#include "odom.h"
+#include "irobot_state.h"
 #include "pid.h"
 #include "pure_pursuit.h"
 
@@ -101,7 +101,7 @@ struct SwingToPointParams {
  */
 class Actor {
 private:
-  Odom& odom;
+  IRobotState& state;
   pros::MotorGroup& left_motors;
   pros::MotorGroup& right_motors;
 
@@ -134,7 +134,7 @@ public:
   /**
    * @brief Construct Actor with custom PID settings
    */
-  Actor(Odom& odom_ref, pros::MotorGroup& left_motors_ref,
+  Actor(IRobotState& state_ref, pros::MotorGroup& left_motors_ref,
     pros::MotorGroup& right_motors_ref,
     MotionControllerSettings lateral_settings,
     MotionControllerSettings angular_settings);
@@ -233,6 +233,15 @@ public:
    */
   void wiggle(float speed_start, float speed_end, float distance_inches,
     float wiggle_degrees, float wiggle_period,
+    float timeout_milliseconds);
+
+  /**
+   * @brief Wiggle in place, oscillating heading from +amplitude to -amplitude
+   * @param wiggle_degrees Amplitude of heading oscillation (degrees)
+   * @param wiggle_period Period of one full oscillation (seconds)
+   * @param timeout_milliseconds Maximum duration (ms)
+   */
+  void wiggleInPlace(float wiggle_degrees, float wiggle_period,
     float timeout_milliseconds);
 
   /**

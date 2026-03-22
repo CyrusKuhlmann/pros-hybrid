@@ -13,11 +13,11 @@ T clampValue(T val, T lo, T hi) {
 
 // ========== Constructor ==========
 
-Actor::Actor(Odom& odom_ref, pros::MotorGroup& left_motors_ref,
+Actor::Actor(IRobotState& state_ref, pros::MotorGroup& left_motors_ref,
   pros::MotorGroup& right_motors_ref,
   MotionControllerSettings lateral_settings,
   MotionControllerSettings angular_settings)
-  : odom(odom_ref),
+  : state(state_ref),
   left_motors(left_motors_ref),
   right_motors(right_motors_ref),
   lateralPID(lateral_settings.kP, lateral_settings.kI, lateral_settings.kD,
@@ -65,8 +65,8 @@ float Actor::angleError(float target, float current) {
 }
 
 Pose Actor::getPose() {
-  Eigen::Vector2d xy = odom.get_xy_inches();
-  return Pose(xy(0), xy(1), odom.get_theta_degrees());
+  Eigen::Vector2d xy = state.get_xy_inches();
+  return Pose(xy(0), xy(1), state.get_theta_degrees());
 }
 
 void Actor::resetMotionState() {
@@ -97,7 +97,7 @@ void Actor::stop() {
 
 void Actor::turnByDegrees(float delta_degrees, TurnToHeadingParams params,
   int timeout) {
-  float startHeading = odom.get_theta_degrees();
+  float startHeading = state.get_theta_degrees();
   float targetHeading = startHeading + delta_degrees;
   turnToHeading(targetHeading, params, timeout);
 }
@@ -112,7 +112,7 @@ void Actor::turnToHeading(float target_degrees, TurnToHeadingParams params,
   angularLargeExit.reset();
   distanceTraveled = 0;
 
-  float startHeading = odom.get_theta_degrees();
+  float startHeading = state.get_theta_degrees();
   int startTime = pros::millis();
   const int DT_MS = 10;
 
@@ -120,7 +120,7 @@ void Actor::turnToHeading(float target_degrees, TurnToHeadingParams params,
     // Check timeout
     if (timeout > 0 && (pros::millis() - startTime) > timeout) break;
 
-    float currentHeading = odom.get_theta_degrees();
+    float currentHeading = state.get_theta_degrees();
     float error = angleError(target_degrees, currentHeading);
 
     // Track distance traveled (in degrees)
@@ -207,7 +207,7 @@ void Actor::swingToHeading(float target_degrees, DriveSide lockedSide,
   angularLargeExit.reset();
   distanceTraveled = 0;
 
-  float startHeading = odom.get_theta_degrees();
+  float startHeading = state.get_theta_degrees();
   int startTime = pros::millis();
   const int DT_MS = 10;
 
@@ -215,7 +215,7 @@ void Actor::swingToHeading(float target_degrees, DriveSide lockedSide,
     // Check timeout
     if (timeout > 0 && (pros::millis() - startTime) > timeout) break;
 
-    float currentHeading = odom.get_theta_degrees();
+    float currentHeading = state.get_theta_degrees();
     float error = angleError(target_degrees, currentHeading);
 
     // Track distance traveled (in degrees)
@@ -318,8 +318,8 @@ void Actor::driveStraight(float distance_inches, MoveToPointParams params,
   lateralLargeExit.reset();
   distanceTraveled = 0;
 
-  Eigen::Vector2d startXY = odom.get_xy_inches();
-  float startHeading = odom.get_theta_degrees();
+  Eigen::Vector2d startXY = state.get_xy_inches();
+  float startHeading = state.get_theta_degrees();
   int startTime = pros::millis();
   const int DT_MS = 10;
 
@@ -331,8 +331,8 @@ void Actor::driveStraight(float distance_inches, MoveToPointParams params,
     // Check timeout
     if (timeout > 0 && (pros::millis() - startTime) > timeout) break;
 
-    Eigen::Vector2d currentXY = odom.get_xy_inches();
-    float currentHeading = odom.get_theta_degrees();
+    Eigen::Vector2d currentXY = state.get_xy_inches();
+    float currentHeading = state.get_theta_degrees();
 
     // Calculate traveled distance
     distanceTraveled = (currentXY - startXY).norm();
@@ -390,13 +390,13 @@ void Actor::driveStraight(float distance_inches, MoveToPointParams params,
 }
 
 void Actor::driveTime(float time_ms, float speed_percent) {
-  float startHeading = odom.get_theta_degrees();
+  float startHeading = state.get_theta_degrees();
   int startTime = pros::millis();
   const int DT_MS = 10;
   const float KP_HEADING = 0.85f;
 
   while ((pros::millis() - startTime) < time_ms) {
-    float currentHeading = odom.get_theta_degrees();
+    float currentHeading = state.get_theta_degrees();
     float headingError = angleError(startHeading, currentHeading);
     float headingCorrection = KP_HEADING * headingError;
 
@@ -612,8 +612,8 @@ void Actor::wiggle(float speed_start, float speed_end, float distance_inches,
   float wiggle_degrees, float wiggle_period,
   float timeout_milliseconds) {
   // Get starting pose
-  Eigen::Vector2d startXY = odom.get_xy_inches();
-  float startHeading = odom.get_theta_degrees();
+  Eigen::Vector2d startXY = state.get_xy_inches();
+  float startHeading = state.get_theta_degrees();
   float traveled = 0;
   int startTime = pros::millis();
   const int DT_MS = 10;
@@ -626,7 +626,7 @@ void Actor::wiggle(float speed_start, float speed_end, float distance_inches,
     float wiggle =
       std::sin(2 * M_PI * elapsed / wiggle_period) * wiggle_degrees;
     float targetHeading = startHeading + wiggle;
-    float currentHeading = odom.get_theta_degrees();
+    float currentHeading = state.get_theta_degrees();
     float headingError = angleError(targetHeading, currentHeading);
 
     // Simple P controller for heading
@@ -636,8 +636,27 @@ void Actor::wiggle(float speed_start, float speed_end, float distance_inches,
     arcade(throttle, turn);
 
     // Update traveled distance
-    Eigen::Vector2d currentXY = odom.get_xy_inches();
+    Eigen::Vector2d currentXY = state.get_xy_inches();
     traveled = (currentXY - startXY).norm();
+    pros::delay(DT_MS);
+  }
+  stop();
+}
+
+void Actor::wiggleInPlace(float wiggle_degrees, float wiggle_period,
+  float timeout_milliseconds) {
+  float startHeading = state.get_theta_degrees();
+  int startTime = pros::millis();
+  const int DT_MS = 10;
+
+  while ((pros::millis() - startTime) < timeout_milliseconds) {
+    float elapsed = (pros::millis() - startTime) / 1000.0f;
+    float targetHeading = startHeading +
+      std::sin(2.0f * M_PI * elapsed / wiggle_period) * wiggle_degrees;
+    float currentHeading = state.get_theta_degrees();
+    float error = angleError(targetHeading, currentHeading);
+    float turn = 2.0f * error;
+    tank(turn, -turn);
     pros::delay(DT_MS);
   }
   stop();
@@ -692,8 +711,8 @@ void Actor::followPath(const CatmullRomPath& path,
     if (elapsed_ms > timeout) break;
 
     // ── Current robot pose ──
-    Eigen::Vector2d xy = odom.get_xy_inches();
-    Pose current(xy(0), xy(1), odom.get_theta_degrees());
+    Eigen::Vector2d xy = state.get_xy_inches();
+    Pose current(xy(0), xy(1), state.get_theta_degrees());
 
     // ── Pure pursuit update (with velocity profiling) ──
     PurePursuitOutput cmd = pursuit.calculate(current, extPath, params, search_start);

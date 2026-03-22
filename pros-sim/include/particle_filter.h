@@ -20,7 +20,7 @@ public:
   Eigen::Vector2f left_sensor_offset = Eigen::Vector2f(-7.0f, 0.0f);  // inches from center to left sensor
 
   // Noise standard deviations
-  float sigma_motion = 0.35f;   // inches – motion noise per axis
+  float sigma_motion = 0.15f;   // inches – motion noise per axis
   float sigma_sensor = 1.0f;   // inches – sensor measurement noise
 
   // Field dimensions (VEX field: 144 in × 144 in)

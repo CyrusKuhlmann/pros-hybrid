@@ -69,7 +69,7 @@ MotionControllerSettings angularSettings = {
 };
 
 // Create Actor with PID settings
-Actor actor(odom, left_motors, right_motors, lateralSettings, angularSettings);
+Actor actor(pf_loc, left_motors, right_motors, lateralSettings, angularSettings);
 
 
 
@@ -96,11 +96,10 @@ void initialize() {
   hoodLever.retract();
   wingLever.retract();
   matchLoadLever.retract();
+  odom.manual_set_xy_theta(9.0, -45.0, 90.0);
   pros::Task odom_task(std::bind(&Odom::odom_task_fn, &odom));
   pros::delay(1000);
-  // Initialize and start particle filter on its own task
-  // TODO: Set to your robot's actual starting position on the field
-  pf_loc.initialize(9.0f, -45.0f);
+  pf_loc.initialize(9.0, -45.0);
   pros::Task pf_task(std::bind(&PFLocalization::task_fn, &pf_loc));
 }
 
@@ -109,10 +108,10 @@ void disabled() {}
 void competition_initialize() {}
 
 void autonomous() {
-  skills_auton(actor, intake, matchLoadLever, wingLever, hoodLever);
+  right_auton(actor, intake, matchLoadLever, wingLever, hoodLever);
 
 
-  Eigen::Vector2d pos = odom.get_xy_inches();
+  Eigen::Vector2d pos = pf_loc.get_xy_inches();
   printf("Final Position - X: %.2f, Y: %.2f\n", pos.x(), pos.y());
 }
 

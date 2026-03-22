@@ -14,7 +14,7 @@ double Odom::deg_to_rad(double deg) { return deg * (M_PI / 180.0); }
 
 void Odom::update_raw_values() {
   prev_theta_degrees = theta_degrees;
-  theta_degrees = imu.get_rotation() * IMU_CORRECTION_FACTOR;
+  theta_degrees = imu.get_rotation() * IMU_CORRECTION_FACTOR + theta_offset;
   average_theta_degrees = (theta_degrees + prev_theta_degrees) / 2.0;
   delta_theta_degrees = theta_degrees - prev_theta_degrees;
   int forward_centidegrees = -forward_rot.get_position();
@@ -35,9 +35,12 @@ void Odom::update_xy() {
   xy = prev_xy + R_average_theta * delta_xy;
 }
 
-void Odom::manual_set_xy(double x_inches, double y_inches) {
+void Odom::manual_set_xy_theta(double x_inches, double y_inches, double theta_deg) {
   xy(0, 0) = x_inches;
   xy(1, 0) = y_inches;
+  theta_offset = theta_deg - imu.get_rotation() * IMU_CORRECTION_FACTOR;
+  theta_degrees = theta_deg;
+  prev_theta_degrees = theta_deg;
 }
 
 void Odom::debug(int i) {

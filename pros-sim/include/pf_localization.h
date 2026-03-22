@@ -3,17 +3,18 @@
 #include "Eigen/Dense"
 #include "api.h"
 #include "distance_sensor.h"
+#include "irobot_state.h"
 #include "odom.h"
 #include "particle_filter.h"
 
 // ---- Configuration (adjust to your robot) ----
 const int PF_LEFT_DISTANCE_PORT = 5;   // V5 port for left distance sensor
 const int PF_RIGHT_DISTANCE_PORT = 6;  // V5 port for right distance sensor
-const int PF_NUM_PARTICLES = 1000;
+const int PF_NUM_PARTICLES = 2000;
 const float PF_INITIAL_SPREAD = 5.0f;  // inches – gaussian spread at init
 const int PF_UPDATE_INTERVAL_MS = 67;  // how often the PF task runs
 
-class PFLocalization {
+class PFLocalization : public IRobotState {
 private:
   Odom& odom;
   DistanceSensor left_distance;
@@ -35,6 +36,12 @@ public:
 
   /// Get the particle filter's best position estimate (inches).
   Eigen::Vector2f get_estimate() const;
+
+  /// IRobotState interface – returns PF estimate as double vector.
+  Eigen::Matrix<double, 2, 1> get_xy_inches() override;
+
+  /// IRobotState interface – delegates to internal odom heading.
+  double get_theta_degrees() override;
 
   /// Blocking task loop – pass to pros::Task.
   void task_fn();

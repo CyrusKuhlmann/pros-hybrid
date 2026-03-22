@@ -86,9 +86,7 @@ ARROW_R = (6.5, -1.8)
 # ────────────────────────────────────────────────────────────────────────
 # Default field background image
 # ────────────────────────────────────────────────────────────────────────
-DEFAULT_FIELD_IMG = (
-    Path(__file__).resolve().parent.parent / "assets" / "Skills_field.png"
-)
+DEFAULT_FIELD_IMG = Path(__file__).resolve().parent.parent / "assets" / "Game_field.png"
 
 
 # ════════════════════════════════════════════════════════════════════════
@@ -137,25 +135,29 @@ class Visualizer:
 
     # ── path pre-computation ────────────────────────────────────────────
     def _precompute_paths(self) -> None:
-        """Transform loaded spline paths into field-coordinate polylines."""
-        start_x = self.robot.cfg.start_x_in
-        start_y = self.robot.cfg.start_y_in
-        start_h = math.radians(self.robot.cfg.start_heading_deg)
+        """Transform loaded spline paths into field-coordinate polylines.
+
+        Paths are authored with (0, 0) = field centre, so we place
+        them at field centre (72, 72) with no rotation.
+        """
+        center_x = 72.0
+        center_y = 72.0
+        heading = 0.0
 
         for sp in self._paths:
             field_pts = path_to_field_coords(
                 sp.points,
-                start_x,
-                start_y,
-                start_h,
+                center_x,
+                center_y,
+                heading,
             )
             self._path_field_lines.append(field_pts)
 
             wp_pts = waypoints_to_field_coords(
                 sp.waypoints,
-                start_x,
-                start_y,
-                start_h,
+                center_x,
+                center_y,
+                heading,
             )
             self._path_field_waypoints.append(wp_pts)
 

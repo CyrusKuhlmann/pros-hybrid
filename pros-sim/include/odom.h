@@ -4,6 +4,7 @@
 
 #include "Eigen/Dense"
 #include "api.h"
+#include "irobot_state.h"
 #include "pod.h"
 
 // Global rotation and IMU objects
@@ -19,7 +20,7 @@ const double LATERAL_CORRECTION_COUNTERCLOCK = 1.3381;   // inches per radian
 const double IMU_CORRECTION_FACTOR =
 1.0059 * (360.0 / 359.0) * (360.0 / 361.11393);  // multiplier to correct IMU drift
 
-class Odom {
+class Odom : public IRobotState {
 private:
     OdomPod forward_pod;
     OdomPod lateral_pod;
@@ -28,6 +29,7 @@ private:
     double theta_degrees;
     double prev_theta_degrees;
     double average_theta_degrees;
+    double theta_offset;
 
     // Robot position
     Eigen::Matrix<double, 2, 1> xy;
@@ -49,16 +51,17 @@ public:
         theta_degrees(0.0),
         prev_theta_degrees(0.0),
         average_theta_degrees(0.0),
+        theta_offset(0.0),
         xy(Eigen::Matrix<double, 2, 1>::Zero()),
         prev_xy(Eigen::Matrix<double, 2, 1>::Zero()) {
     }
 
     // Methods
     void odom_task_fn();
-    Eigen::Matrix<double, 2, 1> get_xy_inches();
-    double get_theta_degrees();
+    Eigen::Matrix<double, 2, 1> get_xy_inches() override;
+    double get_theta_degrees() override;
     double distance_to_point_inches(Eigen::Matrix<double, 2, 1> target_xy);
     double angle_to_heading_degrees(double target_degrees);
     double angle_to_point_degrees(Eigen::Matrix<double, 2, 1> target_xy);
-    void manual_set_xy(double x_inches, double y_inches);
+    void manual_set_xy_theta(double x_inches, double y_inches, double theta_deg);
 };

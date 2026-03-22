@@ -46,13 +46,24 @@ void PFLocalization::update() {
   }
 }
 
+Eigen::Matrix<double, 2, 1> PFLocalization::get_xy_inches() {
+  Eigen::Vector2f est = pf.estimate();
+  return Eigen::Matrix<double, 2, 1>(
+    static_cast<double>(est.x()),
+    static_cast<double>(est.y()));
+}
+
+double PFLocalization::get_theta_degrees() {
+  return odom.get_theta_degrees();
+}
+
 void PFLocalization::task_fn() {
   while (true) {
     update();
 
     if (initialized) {
       Eigen::Vector2f est = pf.estimate();
-      pros::lcd::print(3, "PF: %.1f, %.1f", est.x(), est.y());
+      // pros::lcd::print(3, "PF: %.1f, %.1f", est.x(), est.y());
       pf.draw_particles();
     }
 

@@ -28,7 +28,7 @@ rolling_friction_coeff = 0.1   # Rolling friction coefficient
 [start_pose]
 x_in         = 81.0             # Starting X position on field (inches from left wall)
 y_in         = 27.0             # Starting Y position on field (inches from bottom wall)
-heading_deg  = 0.0              # Starting heading (0 = north/up, CW positive)
+heading_deg  = 90.0              # Starting heading (0 = north/up, CW positive)
 
 # ── Sensors ─────────────────────────────────────────────
 [sensors]
