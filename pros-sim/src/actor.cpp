@@ -775,4 +775,15 @@ void Actor::followPath(const CatmullRomPath& path,
   params.maxSpeed = std::abs(pursuit.getMaxSpeed());
   params.forwards = pursuit.getForwards();
   followPath(path, pursuit, params, settle_dist, timeout);
+};
+
+void Actor::runDriveTrain(int speed) {
+  left_motors.move(speed);
+  right_motors.move(speed);
+}
+
+void Actor::stopDriveTrain() {
+  left_motors.move(0);
+  right_motors.move(0);
+
 }

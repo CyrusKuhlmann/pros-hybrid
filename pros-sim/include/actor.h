@@ -317,4 +317,8 @@ public:
     const PurePursuitController& pursuit,
     double settle_dist = 1.5,
     int timeout = 0);
+
+  void runDriveTrain(int speed);
+
+  void stopDriveTrain();
 };
