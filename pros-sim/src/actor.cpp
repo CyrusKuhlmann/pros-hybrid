@@ -776,3 +776,4 @@ void Actor::followPath(const CatmullRomPath& path,
   params.forwards = pursuit.getForwards();
   followPath(path, pursuit, params, settle_dist, timeout);
 }
+

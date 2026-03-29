@@ -36,6 +36,7 @@ void Odom::update_xy() {
 }
 
 void Odom::manual_set_xy_theta(double x_inches, double y_inches, double theta_deg) {
+  std::lock_guard<pros::Mutex> lock(mtx);
   xy(0, 0) = x_inches;
   xy(1, 0) = y_inches;
   theta_offset = theta_deg - imu.get_rotation() * IMU_CORRECTION_FACTOR;
@@ -56,12 +57,17 @@ void Odom::debug(int i) {
   //                  forward_pod.get_corrected_inches());
 }
 
-Eigen::Matrix<double, 2, 1> Odom::get_xy_inches() { return xy; }
-double Odom::get_theta_degrees() { return theta_degrees; }
+Eigen::Matrix<double, 2, 1> Odom::get_xy_inches() {
+  std::lock_guard<pros::Mutex> lock(mtx);
+  return xy;
+}
+double Odom::get_theta_degrees() {
+  std::lock_guard<pros::Mutex> lock(mtx);
+  return theta_degrees;
+}
 
-double Odom::angle_to_heading_degrees(double target_degrees) {
-  // normalize theta_degrees to [-180, 180)
-  double current_degrees = std::fmod(theta_degrees + 180.0, 360.0);
+double Odom::angle_to_heading_impl(double target_degrees, double current_theta) const {
+  double current_degrees = std::fmod(current_theta + 180.0, 360.0);
   if (current_degrees < 0) {
     current_degrees += 360.0;
   }
@@ -79,24 +85,44 @@ double Odom::angle_to_heading_degrees(double target_degrees) {
   }
   return shortest_angle;
 }
+
+double Odom::angle_to_heading_degrees(double target_degrees) {
+  std::lock_guard<pros::Mutex> lock(mtx);
+  return angle_to_heading_impl(target_degrees, theta_degrees);
+}
 double Odom::distance_to_point_inches(Eigen::Matrix<double, 2, 1> target_xy) {
-  Eigen::Matrix<double, 2, 1> delta_xy = target_xy - xy;
+  Eigen::Matrix<double, 2, 1> local_xy;
+  {
+    std::lock_guard<pros::Mutex> lock(mtx);
+    local_xy = xy;
+  }
+  Eigen::Matrix<double, 2, 1> delta_xy = target_xy - local_xy;
   return delta_xy.norm();
 }
 double Odom::angle_to_point_degrees(Eigen::Matrix<double, 2, 1> target_xy) {
-  Eigen::Matrix<double, 2, 1> delta_xy = target_xy - xy;
+  Eigen::Matrix<double, 2, 1> local_xy;
+  double local_theta;
+  {
+    std::lock_guard<pros::Mutex> lock(mtx);
+    local_xy = xy;
+    local_theta = theta_degrees;
+  }
+  Eigen::Matrix<double, 2, 1> delta_xy = target_xy - local_xy;
   double target_degrees =
     90 - rad_to_deg(atan2(delta_xy(1, 0), delta_xy(0, 0)));
   pros::lcd::print(3, "Target degrees: %.2f", target_degrees);
-  return angle_to_heading_degrees(target_degrees);
+  return angle_to_heading_impl(target_degrees, local_theta);
 }
 
 void Odom::odom_task_fn() {
   int i = 0;
   while (true) {
-    update_raw_values();
-    update_xy();
-    debug(i);
+    {
+      std::lock_guard<pros::Mutex> lock(mtx);
+      update_raw_values();
+      update_xy();
+      debug(i);
+    }
     pros::delay(67);
     i++;
   }

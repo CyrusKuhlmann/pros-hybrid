@@ -41,17 +41,17 @@ Intake intake(bottomRoller, middleRoller, topRoller);
 
 // Lateral (driving) controller settings
 MotionControllerSettings lateralSettings = {
-    12.0,  // kP - proportional gain (start at 10, increase for faster response)
-    0.0,   // kI - integral gain (usually leave at 0 to avoid oscillation)
-    39.0,  // kD - derivative gain (start at 3x kP, reduces overshoot)
+    13.0,  // kP - proportional gain (start at 10, increase for faster response)
+    0.5,   // kI - integral gain (usually leave at 0 to avoid oscillation)
+    52.0,  // kD - derivative gain (start at 3x kP, reduces overshoot)
     3.0,   // Anti-windup range (inches)
     0.5,   // Small error range (inches) - motion exits if within this for
     // timeout
-100,   // Small error timeout (ms)
-2.0,   // Large error range (inches) - motion exits if within this for
-// timeout
-300,   // Large error timeout (ms)
-8      // Slew rate (max acceleration, lower = smoother but slower)
+    100,   // Small error timeout (ms)
+    2.0,   // Large error range (inches) - motion exits if within this for
+    // timeout
+    300,   // Large error timeout (ms)
+    0     // Slew rate (max acceleration, lower = smoother but slower)
 };
 
 // Angular (turning) controller settings
@@ -70,7 +70,6 @@ MotionControllerSettings angularSettings = {
 
 // Create Actor with PID settings
 Actor actor(pf_loc, left_motors, right_motors, lateralSettings, angularSettings);
-
 
 
 void on_center_button() {
@@ -109,6 +108,7 @@ void competition_initialize() {}
 
 void autonomous() {
   right_auton(actor, intake, matchLoadLever, wingLever, hoodLever);
+  // test_auton(actor, intake, matchLoadLever, wingLever, hoodLever);
 
 
   Eigen::Vector2d pos = pf_loc.get_xy_inches();

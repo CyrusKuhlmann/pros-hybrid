@@ -167,25 +167,17 @@ class PathEditor:
         """Screen px → field coords (inches)."""
         return sx / PPI, FIELD_IN - sy / PPI
 
-    def _field_to_robot_rel(
+    def _field_to_center(
         self, fx: float, fy: float, ftheta: float
     ) -> tuple[float, float, float]:
-        """Convert a field-coordinate waypoint to robot-start-relative coords.
+        """Convert a field-coordinate waypoint to field-center-relative coords.
 
-        The inverse of the transform in ``path_loader.path_to_field_coords``.
+        Origin is the centre of the field (72, 72).  Angles are 0 = north,
+        increasing clockwise.
         """
-        h = math.radians(self.start_heading_deg)
-        dx = fx - self.start_x
-        dy = fy - self.start_y
-        rx = dx * math.cos(h) - dy * math.sin(h)
-        ry = dx * math.sin(h) + dy * math.cos(h)
-        rtheta = ftheta - self.start_heading_deg
-        # Keep in [-360, 360] to match typical C++ usage
-        while rtheta > 360:
-            rtheta -= 360
-        while rtheta < -360:
-            rtheta += 360
-        return rx, ry, rtheta
+        cx = fx - FIELD_IN / 2.0
+        cy = fy - FIELD_IN / 2.0
+        return cx, cy, ftheta
 
     # ────────────────────────────────────────────────────────────────────
     # Spline recomputation
@@ -471,7 +463,9 @@ class PathEditor:
         if self.mouse_field is None:
             return
         fx, fy = self.mouse_field
-        txt = f"({fx:.1f}, {fy:.1f})"
+        cx = fx - FIELD_IN / 2.0
+        cy = fy - FIELD_IN / 2.0
+        txt = f"({cx:.1f}, {cy:.1f})"
         surf = self.font_small.render(txt, True, C_MOUSE_COORD)
         bg = pygame.Surface(
             (surf.get_width() + 8, surf.get_height() + 4), pygame.SRCALPHA
@@ -517,8 +511,8 @@ class PathEditor:
             is_sel = i == self.selected_idx
             col = C_WP_SELECTED if is_sel else C_VALUE
             marker = "\u25b6 " if is_sel else "  "
-            rx, ry, rt = self._field_to_robot_rel(wp.x, wp.y, wp.theta)
-            line = f"{marker}{i + 1}: ({rx:.1f}, {ry:.1f}, {rt:.0f}\u00b0)"
+            cx, cy, ct = self._field_to_center(wp.x, wp.y, wp.theta)
+            line = f"{marker}{i + 1}: ({cx:.1f}, {cy:.1f}, {ct:.0f}\u00b0)"
             self.screen.blit(self.font_label.render(line, True, col), (px + 2, y))
             y += 16
             if y > WIN_H - 220:
@@ -539,14 +533,10 @@ class PathEditor:
         if self.selected_idx is not None and self.selected_idx < len(self.waypoints):
             wp = self.waypoints[self.selected_idx]
             y = self._sec(px, y, f"SELECTED  #{self.selected_idx + 1}")
-            y = self._kv(px, y, "Field X", f"{wp.x:.1f} in")
-            y = self._kv(px, y, "Field Y", f"{wp.y:.1f} in")
-            y = self._kv(px, y, "Field \u03b8", f"{wp.theta:.1f}\u00b0")
-            rx, ry, rt = self._field_to_robot_rel(wp.x, wp.y, wp.theta)
-            y += 2
-            y = self._kv(px, y, "Robot X", f"{rx:.1f} in")
-            y = self._kv(px, y, "Robot Y", f"{ry:.1f} in")
-            y = self._kv(px, y, "Robot \u03b8", f"{rt:.1f}\u00b0")
+            cx, cy, ct = self._field_to_center(wp.x, wp.y, wp.theta)
+            y = self._kv(px, y, "X", f"{cx:.1f} in")
+            y = self._kv(px, y, "Y", f"{cy:.1f} in")
+            y = self._kv(px, y, "\u03b8", f"{ct:.1f}\u00b0")
             y += 4
             y = self._div(px, y)
 
@@ -607,9 +597,9 @@ class PathEditor:
 
         lines = [f"CatmullRomPath {self.path_name}({{"]
         for i, wp in enumerate(self.waypoints):
-            rx, ry, rt = self._field_to_robot_rel(wp.x, wp.y, wp.theta)
+            cx, cy, ct = self._field_to_center(wp.x, wp.y, wp.theta)
             comma = "," if i < len(self.waypoints) - 1 else ""
-            lines.append(f"    {{{rx:.1f}, {ry:.1f}, {rt:.0f}}}{comma}")
+            lines.append(f"    {{{cx:.1f}, {cy:.1f}, {ct:.0f}}}{comma}")
         lines.append("});")
         cpp_code = "\n".join(lines)
 

@@ -20,6 +20,7 @@ ParticleFilter::ParticleFilter(int num_particles) : N(num_particles) {
 
 
 void ParticleFilter::initialize() {
+  std::lock_guard<std::mutex> lock(mtx);
   std::uniform_real_distribution<float> dist_x(-FIELD_WIDTH / 2, FIELD_WIDTH / 2);
   std::uniform_real_distribution<float> dist_y(-FIELD_HEIGHT / 2, FIELD_HEIGHT / 2);
 
@@ -31,6 +32,7 @@ void ParticleFilter::initialize() {
 }
 
 void ParticleFilter::initialize(float center_x, float center_y, float spread) {
+  std::lock_guard<std::mutex> lock(mtx);
   std::normal_distribution<float> dist_x(center_x, spread);
   std::normal_distribution<float> dist_y(center_y, spread);
 
@@ -55,6 +57,7 @@ float ParticleFilter::compute_likelihood(float predicted, float actual) {
 
 void ParticleFilter::update_sensor(float left_dist_inches, float right_dist_inches,
   float heading_rad) {
+  std::lock_guard<std::mutex> lock(mtx);
   // Normalize heading to [0, 360) degrees
   float heading_deg = std::fmod(heading_rad * 180.0f / static_cast<float>(M_PI), 360.0f);
   if (heading_deg < 0) heading_deg += 360.0f;
@@ -105,6 +108,7 @@ void ParticleFilter::update_particle(Particle& particle, float left_dist_inches,
 }
 
 void ParticleFilter::update_motion(float delta_x, float delta_y) {
+  std::lock_guard<std::mutex> lock(mtx);
   float displacement = std::sqrt(delta_x * delta_x + delta_y * delta_y);
   float noise_sigma = sigma_motion * displacement;
 
@@ -128,6 +132,7 @@ void ParticleFilter::update_motion(float delta_x, float delta_y) {
 // ---------------------------------------------------------------------------
 
 void ParticleFilter::resample() {
+  std::lock_guard<std::mutex> lock(mtx);
   printf("Resampling particles...\n");
   double sum_updated = 0.0;
   double sum_not_updated = 0.0;
@@ -176,7 +181,7 @@ void ParticleFilter::resample() {
 // Weighted mean position estimate
 // ---------------------------------------------------------------------------
 
-Eigen::Vector2f ParticleFilter::estimate() const {
+Eigen::Vector2f ParticleFilter::estimate_impl() const {
   Eigen::Vector2f mean = Eigen::Vector2f::Zero();
   float total_weight = 0.0f;
   for (const auto& particle : particles) {
@@ -187,6 +192,11 @@ Eigen::Vector2f ParticleFilter::estimate() const {
     mean /= total_weight;
   }
   return mean;
+}
+
+Eigen::Vector2f ParticleFilter::estimate() const {
+  std::lock_guard<std::mutex> lock(mtx);
+  return estimate_impl();
 }
 
 // raycast from `position` along `angle_rad` and return distance to nearest field wall
@@ -217,11 +227,12 @@ float ParticleFilter::raycast(const Eigen::Vector2f& position,
 
 void ParticleFilter::draw_particles() const {
 #ifdef PROS_SIM
+  std::lock_guard<std::mutex> lock(mtx);
   std::vector<std::pair<double, double>> locations;
   for (const auto& particle : particles) {
     locations.emplace_back(particle.state.x(), particle.state.y());
   }
-  Eigen::Vector2f avg = estimate();
+  Eigen::Vector2f avg = estimate_impl();
   sim::SimClient::instance().send_particle_locations(locations, { avg.x(), avg.y() });
 #endif
 }

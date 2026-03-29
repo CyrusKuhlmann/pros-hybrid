@@ -7,7 +7,7 @@ PFLocalization::PFLocalization(Odom& odom)
   left_distance(PF_LEFT_DISTANCE_PORT),
   right_distance(PF_RIGHT_DISTANCE_PORT),
   pf(PF_NUM_PARTICLES),
-  initialized(false),
+  initialized{ false },
   prev_odom_xy(Eigen::Matrix<double, 2, 1>::Zero()) {
 }
 

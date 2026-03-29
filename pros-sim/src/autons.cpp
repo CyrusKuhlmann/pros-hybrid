@@ -202,6 +202,6 @@ void skills_auton(Actor& actor, Intake& intake, Lever& matchLoadLever, Lever& wi
 }
 
 void test_auton(Actor& actor, Intake& intake, Lever& matchLoadLever, Lever& wingLever, Lever& hoodLever) {
-  actor.driveStraight(18, { .forwards = true, .maxSpeed = 50, .earlyExitRange = 0 }, 2000);
+  actor.driveStraight(40, { .forwards = true, .maxSpeed = 75, .earlyExitRange = 0 }, 2000);
   actor.turnToHeading(90, { .maxSpeed = 50, .earlyExitRange = 0 }, 2000);
 }

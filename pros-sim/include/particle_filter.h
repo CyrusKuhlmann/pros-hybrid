@@ -1,5 +1,6 @@
 #pragma once
 
+#include <mutex>
 #include <vector>
 #include <random>
 #include "Eigen/Dense"
@@ -53,9 +54,13 @@ public:
   /// Access particles (for visualization / debugging).
   const std::vector<Particle>& get_particles() const { return particles; }
 
+  /// Weighted mean without locking (caller must hold mtx).
+  Eigen::Vector2f estimate_impl() const;
+
   void draw_particles() const;
 
 private:
+  mutable std::mutex mtx;
   int N;
   std::vector<Particle> particles;
 

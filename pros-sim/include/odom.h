@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cmath>
+#include <mutex>
 
 #include "Eigen/Dense"
 #include "api.h"
@@ -22,6 +23,7 @@ const double IMU_CORRECTION_FACTOR =
 
 class Odom : public IRobotState {
 private:
+    mutable pros::Mutex mtx;
     OdomPod forward_pod;
     OdomPod lateral_pod;
     // Robot orientation
@@ -39,6 +41,7 @@ private:
     void update_raw_values();
     void update_xy();
     void debug(int i);
+    double angle_to_heading_impl(double target_degrees, double current_theta) const;
 
 public:
     // Constructor

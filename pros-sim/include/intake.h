@@ -1,6 +1,7 @@
 #ifndef INTAKE_H
 #define INTAKE_H
 
+#include <mutex>
 #include "api.h"
 
 // Intake class with 3 rollers for scoring at different goal heights
@@ -15,14 +16,15 @@ enum class ScoringMode {
 };
 
 class Intake {
- private:
+private:
+  pros::Mutex mtx;
   pros::Motor& bottomRoller;  // 11W blue motor
   pros::Motor& middleRoller;  // 5.5W motor
   pros::Motor& topRoller;     // 5.5W motor (reversed)
   int speed;
   bool is_running;
 
- public:
+public:
   Intake(pros::Motor& bottom_ref, pros::Motor& middle_ref, pros::Motor& top_ref, int default_speed = 127);
 
   // Scoring modes

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <atomic>
+
 #include "Eigen/Dense"
 #include "api.h"
 #include "distance_sensor.h"
@@ -12,7 +14,7 @@ const int PF_LEFT_DISTANCE_PORT = 5;   // V5 port for left distance sensor
 const int PF_RIGHT_DISTANCE_PORT = 6;  // V5 port for right distance sensor
 const int PF_NUM_PARTICLES = 2000;
 const float PF_INITIAL_SPREAD = 5.0f;  // inches – gaussian spread at init
-const int PF_UPDATE_INTERVAL_MS = 67;  // how often the PF task runs
+const int PF_UPDATE_INTERVAL_MS = 1;  // how often the PF task runs
 
 class PFLocalization : public IRobotState {
 private:
@@ -20,7 +22,7 @@ private:
   DistanceSensor left_distance;
   DistanceSensor right_distance;
   ParticleFilter pf;
-  bool initialized;
+  std::atomic<bool> initialized;
 
   // Track previous odom position to compute per-cycle deltas
   Eigen::Matrix<double, 2, 1> prev_odom_xy;
