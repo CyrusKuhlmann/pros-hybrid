@@ -661,6 +661,16 @@ void Actor::wiggleInPlace(float wiggle_degrees, float wiggle_period,
   }
   stop();
 }
+
+void Actor::runDriveTrain(double speed_percent) {
+  tank(speed_percent, speed_percent);
+}
+
+void Actor::stopDriveTrain() {
+  tank(0, 0);
+}
+
+
 // ═════════════════════════════════════════════════════════════════════
 //  followPath – pure pursuit controller → motor outputs
 //

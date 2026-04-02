@@ -244,6 +244,10 @@ public:
   void wiggleInPlace(float wiggle_degrees, float wiggle_period,
     float timeout_milliseconds);
 
+  void runDriveTrain(double speed_percent);
+
+  void stopDriveTrain();
+
   /**
    * @brief Get the current pose from odometry
    * @return Pose Current robot pose
