@@ -74,29 +74,23 @@ void right_auton(Actor& actor, Intake& intake, Lever& matchLoadLever, Lever& win
   hoodLever.retract();
   wingLever.extend();
 
-  actor.moveToPoint(47.5, -45, { .forwards = true, .maxSpeed = 47.5 }, 3000);
-  actor.turnToHeading(180, { .maxSpeed = 50, .earlyExitRange = 0 }, 1500);
-  actor.moveToPoint(47.5, -51.5, { .forwards = true, .maxSpeed = 35, .earlyExitRange = 0 }, 1500);
-  actor.turnToHeading(180, { .maxSpeed = 50, .earlyExitRange = 0 }, 1500);
-  actor.moveToPoint(47.5, -31, { .forwards = false, .maxSpeed = 35, .earlyExitRange = 0 }, 1500);
-
+  actor.moveToPoint(44, -45, { .forwards = true, .maxSpeed = 55 }, 3000);
   hoodLever.extend();
+  actor.moveToPoint(43, -30, { .forwards = false, .maxSpeed = 55 }, 6000);
+  actor.runDriveTrain(-40);
   intake.scoreLowGoal();
   pros::delay(300);
   intake.scoreHighGoal();
   pros::delay(1000);
   intake.stop();
+  actor.stopDriveTrain();
 
-  actor.moveToPoint(47.5, -48, { .forwards = true, .maxSpeed = 35, .earlyExitRange = 0 }, 1500);
-  actor.turnToHeading(-45, { .maxSpeed = 50, .earlyExitRange = 0 }, 1500);
-  actor.moveToPoint(29, -29, { .forwards = true, .maxSpeed = 35, .earlyExitRange = 0 }, 2000);
-  matchLoadLever.extend();
+  actor.moveToPoint(48, -49, { .forwards = true, .maxSpeed = 55, .earlyExitRange = 0 }, 1500);
   hoodLever.retract();
+  actor.turnToHeading(-45, { .maxSpeed = 50, .earlyExitRange = 0 }, 1500);
   intake.scoreHighGoal();
-  actor.moveToPoint(23, -23, { .forwards = true, .maxSpeed = 35, .earlyExitRange = 0 }, 2000);
-  matchLoadLever.retract();
-  intake.stop();
-  actor.moveToPoint(15, -15, { .forwards = true, .maxSpeed = 35, .earlyExitRange = 0 }, 2000);
+  actor.moveToPoint(8.5, -16, { .forwards = true, .maxSpeed = 55, .earlyExitRange = 0 }, 2000);
+  pros::delay(425);
   intake.scoreLowGoal();
   pros::delay(3000);
 

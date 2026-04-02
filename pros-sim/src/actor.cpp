@@ -760,3 +760,9 @@ void Actor::followPath(const CatmullRomPath& path,
     stop();
   }
 }
+
+void Actor::stopDriveTrain() {
+  left_motors.move(0);
+  right_motors.move(0);
+
+}

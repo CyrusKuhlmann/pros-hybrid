@@ -41,9 +41,9 @@ Intake intake(bottomRoller, middleRoller, topRoller);
 
 // Lateral (driving) controller settings
 MotionControllerSettings lateralSettings = {
-    13.0,  // kP - proportional gain (start at 10, increase for faster response)
-    0.5,   // kI - integral gain (usually leave at 0 to avoid oscillation)
-    52.0,  // kD - derivative gain (start at 3x kP, reduces overshoot)
+    7.25,  // kP - proportional gain (start at 10, increase for faster response)
+    0.005,   // kI - integral gain (usually leave at 0 to avoid oscillation)
+    2.0,  // kD - derivative gain (start at 3x kP, reduces overshoot)
     3.0,   // Anti-windup range (inches)
     0.5,   // Small error range (inches) - motion exits if within this for
     // timeout
@@ -51,7 +51,7 @@ MotionControllerSettings lateralSettings = {
     2.0,   // Large error range (inches) - motion exits if within this for
     // timeout
     300,   // Large error timeout (ms)
-    0     // Slew rate (max acceleration, lower = smoother but slower)
+    8      // Slew rate (max acceleration, lower = smoother but slower)
 };
 
 // Angular (turning) controller settings
@@ -95,10 +95,10 @@ void initialize() {
   hoodLever.retract();
   wingLever.retract();
   matchLoadLever.retract();
-  odom.manual_set_xy_theta(9.0, -45.0, 90.0);
+  odom.manual_set_xy_theta(15.0, -45.0, 90.0);
   pros::Task odom_task(std::bind(&Odom::odom_task_fn, &odom));
   pros::delay(1000);
-  pf_loc.initialize(9.0, -45.0);
+  pf_loc.initialize(15.0, -45.0);
   pros::Task pf_task(std::bind(&PFLocalization::task_fn, &pf_loc));
 }
 
@@ -107,8 +107,8 @@ void disabled() {}
 void competition_initialize() {}
 
 void autonomous() {
-  // right_auton(actor, intake, matchLoadLever, wingLever, hoodLever);
-  test_auton(actor, intake, matchLoadLever, wingLever, hoodLever);
+  // test_auton(actor, intake, matchLoadLever, wingLever, hoodLever);
+  right_auton(actor, intake, matchLoadLever, wingLever, hoodLever);
 
 
   Eigen::Vector2d pos = pf_loc.get_xy_inches();
