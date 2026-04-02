@@ -281,40 +281,25 @@ public:
   // ── Pure-pursuit path following ──────────────────────────────
 
   /**
-   * @brief Follow a CatmullRomPath using pure pursuit with velocity
-   *        profiling and motion chaining support.
+   * @brief Follow a CatmullRomPath using pure pursuit.
    *
-   * This is the preferred overload.  Uses FollowPathParams for
-   * per-call speed limits, motion chaining (minSpeed / earlyExitRange),
-   * deceleration ramp, and curvature speed limiting.
+   * Each loop iteration:
+   *   1. Pure pursuit computes desired left/right wheel speeds.
+   *   2. Slew rate limiting smooths acceleration.
+   *   3. Motor outputs are set to desired wheel speeds.
+   *   4. Exit when closest point is the last path point, within
+   *      settle_dist, early exit range, or timeout.
    *
    * @param path           The geometric path to follow.
-   * @param pursuit        The PurePursuitController to use (holds
-   *                       lookahead, track width, adaptive settings).
-   * @param params         Per-call parameters (speed, chaining, decel).
-   * @param settle_dist    When the robot is within this distance (inches)
-   *                       of the last waypoint, the motion ends.  Default 1.5.
+   * @param pursuit        The PurePursuitController (holds track width).
+   * @param params         Per-call parameters (speed, lookahead, etc.).
+   * @param settle_dist    End motion when within this distance (inches)
+   *                       of the last waypoint.  Default 1.5.
    * @param timeout        Maximum time (ms).  0 = auto from path length.
    */
   void followPath(const CatmullRomPath& path,
     const PurePursuitController& pursuit,
     const FollowPathParams& params,
-    double settle_dist = 1.5,
-    int timeout = 0);
-
-  /**
-   * @brief Follow a CatmullRomPath using pure pursuit (legacy API).
-   *
-   * Delegates to the FollowPathParams overload with defaults derived
-   * from the controller's stored max_speed and forwards flag.
-   *
-   * @param path           The geometric path to follow.
-   * @param pursuit        The PurePursuitController to use.
-   * @param settle_dist    Settle distance (inches).  Default 1.5.
-   * @param timeout        Maximum time (ms).  0 = auto.
-   */
-  void followPath(const CatmullRomPath& path,
-    const PurePursuitController& pursuit,
     double settle_dist = 1.5,
     int timeout = 0);
 };

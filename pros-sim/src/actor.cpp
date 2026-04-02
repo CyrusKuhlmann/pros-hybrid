@@ -662,15 +662,15 @@ void Actor::wiggleInPlace(float wiggle_degrees, float wiggle_period,
   stop();
 }
 // ═════════════════════════════════════════════════════════════════════
-//  followPath – pure-pursuit controller → motor percentages
+//  followPath – pure pursuit controller → motor outputs
 //
-//  Each loop iteration:
+//  Algorithm (per loop iteration):
 //    1. Get current pose from odometry.
-//    2. Run pure pursuit (with velocity profiling) to get motor %.
+//    2. Run pure pursuit to get desired left/right wheel speeds.
 //    3. Apply slew rate limiting for smooth acceleration.
-//    4. Send to motors via move().
-//    5. Exit when close to the final point, early-exit range
-//       (motion chaining), or timeout.
+//    4. Send to motors.
+//    5. Exit when closest == last point, within settle_dist,
+//       early exit range (motion chaining), or timeout.
 // ═════════════════════════════════════════════════════════════════════
 
 void Actor::followPath(const CatmullRomPath& path,
@@ -679,30 +679,23 @@ void Actor::followPath(const CatmullRomPath& path,
   double settle_dist,
   int timeout) {
   const int DT_MS = 10;
+  const double dt = DT_MS / 1000.0;  // seconds per loop
 
   if (path.size() == 0) return;
-
-  // ── Extend the path past its endpoint so the pure-pursuit
-  //    controller always has valid lookahead points near the end.
-  //    The exit condition still uses the original final pose. ──
-  CatmullRomPath extPath = path;             // working copy
-  extPath.extend(pursuit.getLookahead());     // extend by lookahead dist
 
   // Default timeout: rough estimate from path length and speed
   if (timeout <= 0) {
     double speed_pct = std::abs(params.maxSpeed);
-    // Rough max in/s: 200 RPM, 3.25" wheels ≈ 34 in/s at 100%
+    // Rough max in/s: 200 RPM, 3.25" wheels ~ 34 in/s at 100%
     double approx_vel = (speed_pct / 100.0) * 34.0;
     if (approx_vel < 1.0) approx_vel = 1.0;
     timeout = static_cast<int>(path.totalLength() / approx_vel * 1000.0) + 2000;
   }
 
   int startTime = pros::millis();
-  size_t search_start = 0;  // monotonically advancing closest-point window
-
   const Pose& finalPose = path[path.size() - 1].pose;
 
-  // Previous motor outputs for slew rate limiting
+  // Previous wheel speeds for slew rate limiting
   double prev_left = 0.0;
   double prev_right = 0.0;
 
@@ -710,48 +703,53 @@ void Actor::followPath(const CatmullRomPath& path,
     int elapsed_ms = pros::millis() - startTime;
     if (elapsed_ms > timeout) break;
 
-    // ── Current robot pose ──
+    // 1. Current robot pose
     Eigen::Vector2d xy = state.get_xy_inches();
     Pose current(xy(0), xy(1), state.get_theta_degrees());
 
-    // ── Pure pursuit update (with velocity profiling) ──
-    PurePursuitOutput cmd = pursuit.calculate(current, extPath, params, search_start);
+    // 2. Pure pursuit update
+    PurePursuitOutput cmd = pursuit.calculate(current, path, params);
 
-    // Advance the search window so we never chase points behind us
-    search_start = cmd.closest_idx;
+    double left_pct = cmd.leftSpeed;
+    double right_pct = cmd.rightSpeed;
 
-    // ── Apply slew rate limiting (smooth acceleration) ──
-    double left_pct = cmd.left_pct;
-    double right_pct = cmd.right_pct;
-
-    if (params.maxAccel > 0) {
+    // 3. Slew rate limiting
+    //    Limit how fast wheel speeds can change per timestep.
+    //    slewRate is in %/second, so max change per loop = slewRate * dt
+    if (params.slewRate > 0) {
+      double maxChange = params.slewRate * dt;
       double dl = left_pct - prev_left;
       double dr = right_pct - prev_right;
-      if (std::abs(dl) > params.maxAccel)
-        left_pct = prev_left + (dl > 0 ? params.maxAccel : -params.maxAccel);
-      if (std::abs(dr) > params.maxAccel)
-        right_pct = prev_right + (dr > 0 ? params.maxAccel : -params.maxAccel);
+      if (std::abs(dl) > maxChange)
+        left_pct = prev_left + (dl > 0 ? maxChange : -maxChange);
+      if (std::abs(dr) > maxChange)
+        right_pct = prev_right + (dr > 0 ? maxChange : -maxChange);
     }
     prev_left = left_pct;
     prev_right = right_pct;
 
-    // ── Send to motors (percentage, −127 … +127 mapped from %) ──
+    // 4. Send to motors (percentage -> -127..+127)
     double left_out = left_pct * 127.0 / 100.0;
     double right_out = right_pct * 127.0 / 100.0;
     left_motors.move(static_cast<int32_t>(left_out));
     right_motors.move(static_cast<int32_t>(right_out));
 
-    // ── Distance to final point ──
+    // 5. Exit conditions
+
+    // Distance to final point
     double dx = finalPose.x - current.x;
     double dy = finalPose.y - current.y;
     double dist_to_end = std::sqrt(dx * dx + dy * dy);
 
-    // ── Motion chaining exit (earlyExitRange > 0) ──
+    // Exit when closest point is the last point on the path
+    if (cmd.closestIdx >= path.size() - 1) break;
+
+    // Motion chaining exit (earlyExitRange > 0)
     if (params.earlyExitRange > 0 && dist_to_end < params.earlyExitRange) {
-      break;  // don't stop motors – chaining into next motion
+      break;  // don't stop motors - chaining into next motion
     }
 
-    // ── Standard exit: within settle_dist of the final point ──
+    // Standard exit: within settle_dist of the final point
     if (dist_to_end < settle_dist) break;
 
     pros::delay(DT_MS);
@@ -762,18 +760,3 @@ void Actor::followPath(const CatmullRomPath& path,
     stop();
   }
 }
-
-// ═════════════════════════════════════════════════════════════════════
-//  followPath – legacy overload (preserves old API)
-// ═════════════════════════════════════════════════════════════════════
-
-void Actor::followPath(const CatmullRomPath& path,
-  const PurePursuitController& pursuit,
-  double settle_dist,
-  int timeout) {
-  FollowPathParams params;
-  params.maxSpeed = std::abs(pursuit.getMaxSpeed());
-  params.forwards = pursuit.getForwards();
-  followPath(path, pursuit, params, settle_dist, timeout);
-}
-

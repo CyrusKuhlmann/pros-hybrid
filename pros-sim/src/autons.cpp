@@ -33,7 +33,7 @@ CatmullRomPath path3({
     {-47, 50, 0},
   });
 
-PurePursuitController pursuit(15, 11.67);  // lookahead & track width only
+PurePursuitController pursuit(11.67);  // track width only
 
 void right_auton(Actor& actor, Intake& intake, Lever& matchLoadLever, Lever& wingLever, Lever& hoodLever) {
   // // right auton (reverse of left)
@@ -144,7 +144,6 @@ void skills_auton(Actor& actor, Intake& intake, Lever& matchLoadLever, Lever& wi
   intake.stop();
   actor.driveStraight(-7, { .forwards = false, .maxSpeed = 35, .minSpeed = 15, .earlyExitRange = 3 }, 2000);
 
-  PursuitPreset::applyTight(pursuit);
   actor.followPath(path1, pursuit, PursuitPreset::REVERSE_PRECISE);
 
   // odom.manual_set_xy(47, -27);
@@ -202,6 +201,37 @@ void skills_auton(Actor& actor, Intake& intake, Lever& matchLoadLever, Lever& wi
 }
 
 void test_auton(Actor& actor, Intake& intake, Lever& matchLoadLever, Lever& wingLever, Lever& hoodLever) {
-  actor.driveStraight(40, { .forwards = true, .maxSpeed = 75, .earlyExitRange = 0 }, 2000);
-  actor.turnToHeading(90, { .maxSpeed = 50, .earlyExitRange = 0 }, 2000);
+  // ── Pure pursuit test ──────────────────────────────────────────
+  //
+  // 1. Create a PurePursuitController with your track width (inches).
+  PurePursuitController pp(11.67);
+
+  // 2. Define a path as a list of waypoints: {x, y, heading_degrees}.
+  //    The heading at each waypoint controls the tangent direction of
+  //    the spline through that point.
+  CatmullRomPath testPath({
+    {9, -45, 90},     // start: facing right
+    {30, -45, 90},    // straight segment going right
+    {45, -30, 0},     // curve up
+    {45, -10, 0},     // continue forward
+    });
+
+  // 3. Pick a preset (or make your own FollowPathParams).
+  //    Presets live in PursuitPreset:: namespace.
+  //    Key fields:  forwards, maxSpeed, lookahead, slewRate,
+  //                 minSpeed (for chaining), earlyExitRange (for chaining).
+  actor.followPath(testPath, pp, PursuitPreset::BALANCED);
+
+  // ── Example: custom params ─────────────────────────────────────
+  //    auto customParams = PursuitPreset::FAST;
+  //    customParams.maxSpeed = 60.0;
+  //    customParams.lookahead = 12.0;
+  //    actor.followPath(testPath, pp, customParams);
+
+  // ── Example: reverse path ──────────────────────────────────────
+  //    actor.followPath(testPath, pp, PursuitPreset::REVERSE_PRECISE);
+
+  // ── Example: motion chaining (two paths back-to-back) ──────────
+  //    actor.followPath(path1, pp, PursuitPreset::CHAIN);      // keeps rolling
+  //    actor.followPath(path2, pp, PursuitPreset::PRECISE);    // stops at end
 }

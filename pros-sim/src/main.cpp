@@ -107,8 +107,8 @@ void disabled() {}
 void competition_initialize() {}
 
 void autonomous() {
-  right_auton(actor, intake, matchLoadLever, wingLever, hoodLever);
-  // test_auton(actor, intake, matchLoadLever, wingLever, hoodLever);
+  // right_auton(actor, intake, matchLoadLever, wingLever, hoodLever);
+  test_auton(actor, intake, matchLoadLever, wingLever, hoodLever);
 
 
   Eigen::Vector2d pos = pf_loc.get_xy_inches();
