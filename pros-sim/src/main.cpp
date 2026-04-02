@@ -96,10 +96,10 @@ void initialize() {
   hoodLever.retract();
   wingLever.retract();
   matchLoadLever.retract();
-  odom.manual_set_xy_theta(15.0, -45.0, 90.0);
+  odom.manual_set_xy_theta(-15.0, -45.0, -90.0);
   pros::Task odom_task(std::bind(&Odom::odom_task_fn, &odom));
   pros::delay(1000);
-  pf_loc.initialize(15.0, -45.0);
+  pf_loc.initialize(-15.0, -45.0);
   pros::Task pf_task(std::bind(&PFLocalization::task_fn, &pf_loc));
 }
 
@@ -109,11 +109,7 @@ void competition_initialize() {}
 
 void autonomous() {
   // test_auton(actor, intake, matchLoadLever, wingLever, hoodLever);
-  right_auton(actor, intake, matchLoadLever, wingLever, hoodLever);
-
-
-  Eigen::Vector2d pos = pf_loc.get_xy_inches();
-  printf("Final Position - X: %.2f, Y: %.2f\n", pos.x(), pos.y());
+  left_auton(actor, intake, matchLoadLever, wingLever, hoodLever);
 }
 
 void opcontrol() {

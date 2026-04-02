@@ -5,7 +5,7 @@
 #include "Eigen/Dense"
 #include "api.h"
 
-pros::v5::Rotation lateral_rot(-15);
+pros::v5::Rotation lateral_rot(-6);
 pros::v5::Rotation forward_rot(18);
 pros::v5::Imu imu(16);
 

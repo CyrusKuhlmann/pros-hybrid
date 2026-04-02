@@ -9,8 +9,8 @@
 
 // ---- Configuration (adjust to your robot) ----
 const int PF_LEFT_DISTANCE_PORT = 5;   // V5 port for left distance sensor
-const int PF_RIGHT_DISTANCE_PORT = 6;  // V5 port for right distance sensor
-const int PF_NUM_PARTICLES = 2000;
+const int PF_RIGHT_DISTANCE_PORT = 15;  // V5 port for right distance sensor
+const int PF_NUM_PARTICLES = 300;
 const float PF_INITIAL_SPREAD = 5.0f;  // inches – gaussian spread at init
 const int PF_UPDATE_INTERVAL_MS = 67;  // how often the PF task runs
 

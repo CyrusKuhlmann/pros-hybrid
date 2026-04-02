@@ -74,52 +74,99 @@ void right_auton(Actor& actor, Intake& intake, Lever& matchLoadLever, Lever& win
   hoodLever.retract();
   wingLever.extend();
 
-  actor.moveToPoint(44, -45, { .forwards = true, .maxSpeed = 55 }, 3000);
-  hoodLever.extend();
-  actor.moveToPoint(43, -30, { .forwards = false, .maxSpeed = 55}, 6000);
-  actor.runDriveTrain(-40);
-  intake.scoreLowGoal();
-  pros::delay(300);
-  intake.scoreHighGoal();
-  pros::delay(1000);
-  intake.stop();
-  actor.stopDriveTrain();
+  // actor.moveToPoint(44, -45, { .forwards = true, .maxSpeed = 55 }, 3000);
+  // hoodLever.extend();
+  // actor.moveToPoint(43, -30, { .forwards = false, .maxSpeed = 55}, 6000);
+  // actor.runDriveTrain(-40);
+  // intake.scoreLowGoal();
+  // pros::delay(300);
+  // intake.scoreHighGoal();
+  // pros::delay(1000);
+  // intake.stop();
+  // actor.stopDriveTrain();
 
-  actor.moveToPoint(48, -49, { .forwards = true, .maxSpeed = 55, .earlyExitRange = 0 }, 1500);
-  hoodLever.retract();
-  actor.turnToHeading(-45, { .maxSpeed = 50, .earlyExitRange = 0 }, 1500);
-  intake.scoreHighGoal();
-  actor.moveToPoint(8.5, -16, { .forwards = true, .maxSpeed = 55, .earlyExitRange = 0 }, 2000);
-  pros::delay(425);
-  intake.scoreLowGoal();
-  pros::delay(3000);
+  // actor.moveToPoint(48, -49, { .forwards = true, .maxSpeed = 55, .earlyExitRange = 0 }, 1500);
+  // hoodLever.retract();
+  // actor.turnToHeading(-45, { .maxSpeed = 50, .earlyExitRange = 0 }, 1500);
+  // intake.scoreHighGoal();
+  // actor.moveToPoint(8.5, -16, { .forwards = true, .maxSpeed = 55, .earlyExitRange = 0 }, 2000);
+  // pros::delay(425);
+  // intake.scoreLowGoal();
+  // pros::delay(3000);
 
 
 
 }
 
 void left_auton(Actor& actor, Intake& intake, Lever& matchLoadLever, Lever& wingLever, Lever& hoodLever) {
-  // Left Auton
+  // // Left Auton
 
-  actor.moveToPoint(9, -33.5, { .forwards = true, .maxSpeed = 50, .earlyExitRange = 0 }, 4000);
-  actor.turnToHeading(-45, { .maxSpeed = 50, .earlyExitRange = 0 }, 2000);
+  // actor.moveToPoint(9, -33.5, { .forwards = true, .maxSpeed = 50, .earlyExitRange = 0 }, 4000);
+  // actor.turnToHeading(-45, { .maxSpeed = 50, .earlyExitRange = 0 }, 2000);
+  // intake.scoreHighGoal();
+  // actor.wiggle(25, 55, 22, 7.5, 0.5, 3000);
+  // actor.moveToPoint(-7.5, -22.75, { .forwards = false, .maxSpeed = 60, .earlyExitRange = 0 }, 2000);
+  // actor.turnToHeading(-127, { .maxSpeed = 50, .earlyExitRange = 0 }, 2000);
+  // actor.moveToPoint(3.2, -10.6, { .forwards = false, .maxSpeed = 50, .earlyExitRange = 1.5 }, 2000);
+  // intake.scoreLowGoal();
+  // pros::delay(300);
+  // intake.scoreMiddleGoal();
+  // actor.driveStraight(-5, { .forwards = false, .maxSpeed = 15, .earlyExitRange = 0 }, 2000);
+  // pros::delay(275);
+  // intake.stop();
+
+  // // next part
+
+  // actor.moveToPoint(-31.5, -44, { .forwards = true, .maxSpeed = 60, .minSpeed = 40, .earlyExitRange = 13 }, 1200);
+  // actor.moveToPoint(-32, -44, { .forwards = true, .maxSpeed = 40, .earlyExitRange = 0 }, 1000);
+  // actor.turnToHeading(-180, { .maxSpeed = 50, .earlyExitRange = 0 }, 1100);
+
+  hoodLever.retract();
+  wingLever.extend();
+
+  actor.moveToPoint(-51, -45, { .forwards = true, .maxSpeed = 65 }, 3000);
+  hoodLever.extend();
+  actor.moveToPoint(-50.875, -33, { .forwards = false, .maxSpeed = 70}, 2000);
+  actor.runDriveTrain(-60);
+  intake.scoreLowGoal();
+  pros::delay(300);
+  actor.stopDriveTrain();
   intake.scoreHighGoal();
-  actor.wiggle(25, 55, 22, 7.5, 0.5, 3000);
-  actor.moveToPoint(-7.5, -22.75, { .forwards = false, .maxSpeed = 60, .earlyExitRange = 0 }, 2000);
-  actor.turnToHeading(-127, { .maxSpeed = 50, .earlyExitRange = 0 }, 2000);
-  actor.moveToPoint(3.2, -10.6, { .forwards = false, .maxSpeed = 50, .earlyExitRange = 1.5 }, 2000);
+  pros::delay(1000);
+  intake.stop();
+
+
+  actor.swingToHeading(90, DriveSide::LEFT, { .maxSpeed = 50, .earlyExitRange = 0 }, 1500);
+  hoodLever.retract();
+  
+  intake.scoreHighGoal();
+
+  actor.moveToPoint(-18.25, -19.25, { .forwards = true, .maxSpeed = 55, .earlyExitRange = 0 }, 2000);
+
+  actor.turnToHeading(-142.5, { .maxSpeed = 55, .earlyExitRange = 0 }, 1500);
+  actor.moveToPoint(-12.25, -9, { .forwards = false, .maxSpeed = 35, .earlyExitRange = 0 }, 2000);
+  hoodLever.extend();
   intake.scoreLowGoal();
   pros::delay(300);
   intake.scoreMiddleGoal();
-  actor.driveStraight(-5, { .forwards = false, .maxSpeed = 15, .earlyExitRange = 0 }, 2000);
-  pros::delay(275);
-  intake.stop();
 
-  // next part
 
-  actor.moveToPoint(-31.5, -44, { .forwards = true, .maxSpeed = 60, .minSpeed = 40, .earlyExitRange = 13 }, 1200);
-  actor.moveToPoint(-32, -44, { .forwards = true, .maxSpeed = 40, .earlyExitRange = 0 }, 1000);
-  actor.turnToHeading(-180, { .maxSpeed = 50, .earlyExitRange = 0 }, 1100);
+
+  // actor.moveToPoint(-50, -45, { .forwards = true, .maxSpeed = 55, .earlyExitRange = 0 }, 1500);
+  // hoodLever.retract();
+  // actor.turnToHeading(45, { .maxSpeed = 50, .earlyExitRange = 0 }, 1500);
+  // intake.scoreHighGoal();
+  // actor.moveToPoint(-5, -11, { .forwards = true, .maxSpeed = 55, .earlyExitRange = 0 }, 2000);
+  // pros::delay(425);
+  // actor.moveToPoint(-9, -15, { .forwards = false, .maxSpeed = 35, .earlyExitRange = 0 }, 2000);
+  // actor.turnToHeading(-135, { .maxSpeed = 50, .earlyExitRange = 0 }, 1500);
+  // actor.driveStraight(-10, { .forwards = false, .maxSpeed = 40, .earlyExitRange = 0 }, 2000);
+  // intake.scoreLowGoal(); 
+  // hoodLever.extend(); 
+  // pros::delay(300);
+  // intake.scoreMiddleGoal();
+  // pros::delay(3000);
+
 
 
 }
